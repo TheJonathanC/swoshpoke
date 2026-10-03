@@ -1,0 +1,599 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Card, ChipDenom } from '@/engine/types';
+import { calculateChipBreakdown } from '@/engine/constants';
+
+export interface Player3DPosition {
+    x: number;
+    z: number;
+    betX: number;
+    betZ: number;
+    stackX: number;
+    stackZ: number;
+    rotY: number;
+    badgeX: number;
+    badgeZ: number;
+}
+
+export const PLAYER_POSITIONS: Player3DPosition[] = [
+    { x: 0, z: 6.5, betX: -1.0, betZ: 3.2, stackX: 2.5, stackZ: 5.5, rotY: 0, badgeX: 0, badgeZ: 14 },
+    { x: -8.8, z: 0, betX: -4.5, betZ: -1.0, stackX: -7.5, stackZ: -2.5, rotY: Math.PI / 2, badgeX: -15, badgeZ: 0 },
+    { x: 0, z: -6.5, betX: 1.0, betZ: -3.2, stackX: -2.5, stackZ: -5.5, rotY: Math.PI, badgeX: 0, badgeZ: -14 },
+    { x: 8.8, z: 0, betX: 4.5, betZ: 1.0, stackX: 7.5, stackZ: 2.5, rotY: -Math.PI / 2, badgeX: 15, badgeZ: 0 }
+];
+
+interface ActiveAnimation {
+    update: (now: number) => boolean;
+}
+
+interface Player3DObjects {
+    handGroup: THREE.Group | null;
+    meshCards: THREE.Group[];
+    chipStackMeshes: THREE.Mesh[];
+    betMeshes: THREE.Mesh[];
+}
+
+export class Poker3DScene {
+    private container: HTMLElement;
+    private scene: THREE.Scene;
+    private camera: THREE.PerspectiveCamera;
+    private renderer: THREE.WebGLRenderer;
+    private controls: OrbitControls;
+    private animations: ActiveAnimation[] = [];
+    private animationFrameId: number | null = null;
+    private isDestroyed: boolean = false;
+
+    private cardBackTexture: THREE.CanvasTexture;
+    private chipTextureCache: Record<number, THREE.CanvasTexture> = {};
+
+    private playerObjects: Player3DObjects[] = [
+        { handGroup: null, meshCards: [], chipStackMeshes: [], betMeshes: [] },
+        { handGroup: null, meshCards: [], chipStackMeshes: [], betMeshes: [] },
+        { handGroup: null, meshCards: [], chipStackMeshes: [], betMeshes: [] },
+        { handGroup: null, meshCards: [], chipStackMeshes: [], betMeshes: [] }
+    ];
+
+    private communityMeshes: THREE.Group[] = [];
+    private potChipsMeshes: THREE.Mesh[] = [];
+
+    private onHUDUpdate?: (coords: { id: number; x: number; y: number }[]) => void;
+
+    constructor(container: HTMLElement, onHUDUpdate?: (coords: { id: number; x: number; y: number }[]) => void) {
+        this.container = container;
+        this.onHUDUpdate = onHUDUpdate;
+
+        // Scene
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x05070a);
+
+        // Camera
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 18, 16);
+        this.scene.add(this.camera);
+
+        // Renderer
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.container.appendChild(this.renderer.domElement);
+
+        // Controls
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.target.set(0, 0, 0);
+        this.controls.enableDamping = true;
+        this.controls.maxPolarAngle = Math.PI / 2.2;
+        this.controls.minDistance = 10;
+        this.controls.maxDistance = 25;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+        this.scene.add(ambientLight);
+
+        const mainSpotLight = new THREE.SpotLight(0xfff8e7, 0.8);
+        mainSpotLight.position.set(0, 24, 0);
+        mainSpotLight.angle = Math.PI / 2.5;
+        mainSpotLight.penumbra = 0.5;
+        mainSpotLight.castShadow = true;
+        mainSpotLight.shadow.mapSize.width = 2048;
+        mainSpotLight.shadow.mapSize.height = 2048;
+        this.scene.add(mainSpotLight);
+
+        // Textures
+        this.cardBackTexture = this.createCardTexture(null);
+
+        // Build Table
+        this.buildTable();
+
+        // Bind Resize
+        window.addEventListener('resize', this.onResize);
+
+        // Start render loop
+        this.animate = this.animate.bind(this);
+        this.animationFrameId = requestAnimationFrame(this.animate);
+    }
+
+    private onResize = (): void => {
+        if (!this.camera || !this.renderer) return;
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+
+    private generateFeltTexture(): THREE.CanvasTexture {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.fillStyle = '#14532d';
+            ctx.fillRect(0, 0, 512, 512);
+
+            for (let i = 0; i < 30000; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.025)';
+                ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+            }
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 4);
+        return texture;
+    }
+
+    private buildTable(): void {
+        const tableGroup = new THREE.Group();
+
+        const feltTex = this.generateFeltTexture();
+        const feltGeo = new THREE.CylinderGeometry(11, 11, 0.3, 64);
+        const feltMat = new THREE.MeshStandardMaterial({ map: feltTex, roughness: 0.95, metalness: 0.0 });
+        const feltMesh = new THREE.Mesh(feltGeo, feltMat);
+        feltMesh.scale.set(1.15, 1, 0.75);
+        feltMesh.receiveShadow = true;
+        tableGroup.add(feltMesh);
+
+        const railGeo = new THREE.CylinderGeometry(11.8, 11.8, 0.5, 64);
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x1e1b18, roughness: 0.5, metalness: 0.1 });
+        const railMesh = new THREE.Mesh(railGeo, railMat);
+        railMesh.scale.set(1.15, 1, 0.75);
+        railMesh.position.y = -0.05;
+        railMesh.receiveShadow = true;
+        tableGroup.add(railMesh);
+
+        this.scene.add(tableGroup);
+    }
+
+    private createCardTexture(cardData: Card | null): THREE.CanvasTexture {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 384;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return new THREE.CanvasTexture(canvas);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 256, 384);
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.strokeRect(6, 6, 244, 372);
+
+        if (cardData) {
+            ctx.fillStyle = cardData.color;
+            ctx.font = 'bold 44px sans-serif';
+            ctx.fillText(cardData.value, 18, 54);
+            ctx.fillText(cardData.suit, 18, 100);
+
+            ctx.save();
+            ctx.translate(256, 384);
+            ctx.rotate(Math.PI);
+            ctx.fillText(cardData.value, 18, 54);
+            ctx.fillText(cardData.suit, 18, 100);
+            ctx.restore();
+
+            ctx.font = '100px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(cardData.suit, 128, 192);
+        } else {
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(10, 10, 236, 364);
+            ctx.fillStyle = '#3b82f6';
+            for (let i = 20; i < 230; i += 20) {
+                for (let j = 20; j < 360; j += 20) {
+                    if ((i + j) % 40 === 0) ctx.fillRect(i, j, 10, 10);
+                }
+            }
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(16, 16, 224, 352);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        return texture;
+    }
+
+    private createCardMesh(cardData: Card): THREE.Group {
+        const cardGroup = new THREE.Group();
+        const geo = new THREE.BoxGeometry(1.4, 0.03, 2.0);
+
+        const faceTex = this.createCardTexture(cardData);
+
+        const matSide = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.9, metalness: 0 });
+        const matFace = new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.9, metalness: 0 });
+        const matBack = new THREE.MeshStandardMaterial({ map: this.cardBackTexture, roughness: 0.9, metalness: 0 });
+
+        const materials = [matSide, matSide, matFace, matBack, matSide, matSide];
+        const mesh = new THREE.Mesh(geo, materials);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+
+        cardGroup.add(mesh);
+        return cardGroup;
+    }
+
+    private getChipTextures(denom: ChipDenom): THREE.CanvasTexture {
+        if (this.chipTextureCache[denom.value]) return this.chipTextureCache[denom.value];
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return new THREE.CanvasTexture(canvas);
+
+        ctx.fillStyle = denom.color;
+        ctx.beginPath();
+        ctx.arc(128, 128, 120, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 12;
+        for (let i = 0; i < 8; i++) {
+            const angle = (i * Math.PI) / 4;
+            ctx.beginPath();
+            ctx.arc(128, 128, 110, angle - 0.15, angle + 0.15);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(128, 128, 70, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = denom.color;
+        ctx.beginPath();
+        ctx.arc(128, 128, 62, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 44px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`$${denom.label}`, 128, 128);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        this.chipTextureCache[denom.value] = texture;
+        return texture;
+    }
+
+    private createChipMesh(denom: ChipDenom): THREE.Mesh {
+        const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 32);
+        const topBottomTex = this.getChipTextures(denom);
+
+        const matSide = new THREE.MeshStandardMaterial({ color: denom.hex, roughness: 0.5, metalness: 0.1 });
+        const matTopBottom = new THREE.MeshStandardMaterial({ map: topBottomTex, roughness: 0.5, metalness: 0.1 });
+
+        const mesh = new THREE.Mesh(geo, [matSide, matTopBottom, matTopBottom]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        return mesh;
+    }
+
+    public animateObjectTo(
+        obj: THREE.Object3D,
+        targetPos: THREE.Vector3,
+        targetRot: { x: number; y: number; z: number },
+        duration = 500,
+        onComplete: (() => void) | null = null
+    ): void {
+        const startPos = obj.position.clone();
+        const startRot = { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z };
+        const startTime = performance.now();
+
+        this.animations.push({
+            update: (now: number) => {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 3);
+
+                obj.position.lerpVectors(startPos, targetPos, ease);
+                obj.rotation.x = startRot.x + (targetRot.x - startRot.x) * ease;
+                obj.rotation.y = startRot.y + (targetRot.y - startRot.y) * ease;
+                obj.rotation.z = startRot.z + (targetRot.z - startRot.z) * ease;
+
+                if (progress >= 1) {
+                    if (onComplete) onComplete();
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    public resetRound3D(): void {
+        this.playerObjects.forEach((pObj) => {
+            if (pObj.handGroup) {
+                if (pObj.handGroup.parent) {
+                    pObj.handGroup.parent.remove(pObj.handGroup);
+                }
+                pObj.handGroup = null;
+            }
+            pObj.meshCards = [];
+        });
+
+        this.communityMeshes.forEach((m) => this.scene.remove(m));
+        this.communityMeshes = [];
+    }
+
+    public dealInitial3DCards(
+        players: { id: number; hand: Card[]; folded: boolean; isHuman: boolean }[],
+        communityCards: Card[]
+    ): void {
+        this.resetRound3D();
+
+        players.forEach((p, i) => {
+            if (p.folded) return;
+
+            const handGroup = new THREE.Group();
+            this.playerObjects[i].handGroup = handGroup;
+
+            if (p.isHuman) {
+                handGroup.position.set(0, -3.2, -8.0);
+                this.camera.add(handGroup);
+
+                p.hand.forEach((cardData, cIdx) => {
+                    const cardMesh = this.createCardMesh(cardData);
+                    const offsetX = cIdx === 0 ? -0.8 : 0.8;
+                    const rotZ = cIdx === 0 ? 0.08 : -0.08;
+
+                    cardMesh.position.set(offsetX, 0, 0);
+                    cardMesh.rotation.set(Math.PI / 2 - 0.15, 0, rotZ);
+
+                    handGroup.add(cardMesh);
+                    this.playerObjects[i].meshCards.push(cardMesh);
+                });
+            } else {
+                const pos = PLAYER_POSITIONS[i];
+                handGroup.position.set(pos.x, 0.22, pos.z);
+                handGroup.rotation.y = pos.rotY;
+                this.scene.add(handGroup);
+
+                p.hand.forEach((cardData, cIdx) => {
+                    const cardMesh = this.createCardMesh(cardData);
+                    const offsetX = cIdx === 0 ? -0.75 : 0.75;
+
+                    cardMesh.position.set(offsetX, 0, 0);
+                    cardMesh.rotation.set(Math.PI, 0, 0);
+
+                    handGroup.add(cardMesh);
+                    this.playerObjects[i].meshCards.push(cardMesh);
+                });
+            }
+        });
+
+        for (let i = 0; i < communityCards.length; i++) {
+            const cardData = communityCards[i];
+            const cardMesh = this.createCardMesh(cardData);
+            const targetX = -3.2 + i * 1.6;
+            cardMesh.position.set(targetX, 0.22, 0);
+            cardMesh.rotation.set(Math.PI, 0, 0);
+            this.scene.add(cardMesh);
+            this.communityMeshes.push(cardMesh);
+        }
+    }
+
+    public revealCommunityCards(startIndex: number, count: number): void {
+        for (let i = 0; i < count; i++) {
+            const idx = startIndex + i;
+            const mesh = this.communityMeshes[idx];
+            if (mesh) {
+                this.animateObjectTo(mesh, mesh.position, { x: 0, y: 0, z: 0 }, 500);
+            }
+        }
+    }
+
+    public animateFold(playerIdx: number, isHuman: boolean): void {
+        const pObj = this.playerObjects[playerIdx];
+        if (!pObj.handGroup) return;
+
+        if (isHuman) {
+            this.animateObjectTo(
+                pObj.handGroup,
+                new THREE.Vector3(0, -8, -8),
+                { x: pObj.handGroup.rotation.x, y: pObj.handGroup.rotation.y, z: pObj.handGroup.rotation.z },
+                400,
+                () => {
+                    if (pObj.handGroup && pObj.handGroup.parent) {
+                        pObj.handGroup.parent.remove(pObj.handGroup);
+                    }
+                    pObj.handGroup = null;
+                }
+            );
+        } else {
+            this.animateObjectTo(
+                pObj.handGroup,
+                new THREE.Vector3(0, 0.1, 0),
+                { x: pObj.handGroup.rotation.x, y: pObj.handGroup.rotation.y, z: pObj.handGroup.rotation.z },
+                400,
+                () => {
+                    if (pObj.handGroup && pObj.handGroup.parent) {
+                        pObj.handGroup.parent.remove(pObj.handGroup);
+                    }
+                    pObj.handGroup = null;
+                }
+            );
+        }
+    }
+
+    public revealBotCardsForShowdown(activePlayerIds: number[]): void {
+        activePlayerIds.forEach((id) => {
+            if (id !== 0) {
+                const pObj = this.playerObjects[id];
+                if (pObj.handGroup) {
+                    pObj.meshCards.forEach((m) => {
+                        this.animateObjectTo(m, m.position, { x: 0, y: 0, z: 0 }, 500);
+                    });
+                }
+            }
+        });
+    }
+
+    public renderPlayer3DChips(playerIdx: number, chips: number, currentBet: number): void {
+        const pObj = this.playerObjects[playerIdx];
+
+        pObj.chipStackMeshes.forEach((m) => this.scene.remove(m));
+        pObj.chipStackMeshes = [];
+        pObj.betMeshes.forEach((m) => this.scene.remove(m));
+        pObj.betMeshes = [];
+
+        const pPos = PLAYER_POSITIONS[playerIdx];
+        const cos = Math.cos(pPos.rotY);
+        const sin = Math.sin(pPos.rotY);
+
+        if (chips > 0) {
+            const breakdown = calculateChipBreakdown(chips);
+            let stackCol = 0;
+
+            breakdown.forEach(({ denom, count }) => {
+                const numStacks = Math.ceil(count / 10);
+                let chipsLeft = count;
+
+                for (let s = 0; s < numStacks; s++) {
+                    const stackHeight = Math.min(chipsLeft, 10);
+                    for (let h = 0; h < stackHeight; h++) {
+                        const chip = this.createChipMesh(denom);
+
+                        const localX = (stackCol % 3) * 0.8;
+                        const localZ = Math.floor(stackCol / 3) * 0.8;
+                        const finalOffsetX = localX * cos - localZ * sin;
+                        const finalOffsetZ = localX * sin + localZ * cos;
+
+                        chip.position.set(
+                            pPos.stackX + finalOffsetX,
+                            0.2 + h * 0.085,
+                            pPos.stackZ + finalOffsetZ
+                        );
+                        this.scene.add(chip);
+                        pObj.chipStackMeshes.push(chip);
+                    }
+                    chipsLeft -= stackHeight;
+                    stackCol++;
+                }
+            });
+        }
+
+        if (currentBet > 0) {
+            const breakdown = calculateChipBreakdown(currentBet);
+            let betCol = 0;
+
+            breakdown.forEach(({ denom, count }) => {
+                const stackHeight = Math.min(count, 5);
+                for (let h = 0; h < stackHeight; h++) {
+                    const chip = this.createChipMesh(denom);
+
+                    const localX = betCol * 0.8;
+                    const finalOffsetX = localX * cos;
+                    const finalOffsetZ = localX * sin;
+
+                    chip.position.set(
+                        pPos.betX + finalOffsetX,
+                        0.2 + h * 0.085,
+                        pPos.betZ + finalOffsetZ
+                    );
+                    this.scene.add(chip);
+                    pObj.betMeshes.push(chip);
+                }
+                betCol++;
+            });
+        }
+    }
+
+    public renderPot3DChips(amount: number): void {
+        this.potChipsMeshes.forEach((m) => this.scene.remove(m));
+        this.potChipsMeshes = [];
+
+        if (amount <= 0) return;
+
+        const breakdown = calculateChipBreakdown(amount);
+        let col = 0;
+
+        breakdown.forEach(({ denom, count }) => {
+            const stackHeight = Math.min(count, 6);
+            for (let h = 0; h < stackHeight; h++) {
+                const chip = this.createChipMesh(denom);
+                const colX = -1.2 + col * 0.8;
+                chip.position.set(colX, 0.2 + h * 0.085, 0);
+                this.scene.add(chip);
+                this.potChipsMeshes.push(chip);
+            }
+            col++;
+        });
+    }
+
+    private updateHUDPositions(): void {
+        if (!this.onHUDUpdate) return;
+        const tempV = new THREE.Vector3();
+        const padding = 70;
+
+        const coords: { id: number; x: number; y: number }[] = [];
+
+        PLAYER_POSITIONS.forEach((pos, i) => {
+            if (i === 0) return; // Player 0 (Human) is statically positioned via CSS above log-box
+
+            tempV.set(pos.badgeX, 1.2, pos.badgeZ);
+            tempV.project(this.camera);
+
+            let x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+            let y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
+
+            x = Math.max(padding, Math.min(window.innerWidth - padding, x));
+            y = Math.max(padding, Math.min(window.innerHeight - padding, y));
+
+            coords.push({ id: i, x, y });
+        });
+
+        this.onHUDUpdate(coords);
+    }
+
+    private animate(now: number): void {
+        if (this.isDestroyed) return;
+
+        this.animationFrameId = requestAnimationFrame(this.animate);
+
+        for (let i = this.animations.length - 1; i >= 0; i--) {
+            if (this.animations[i].update(now)) {
+                this.animations.splice(i, 1);
+            }
+        }
+
+        this.controls.update();
+        this.updateHUDPositions();
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    public destroy(): void {
+        this.isDestroyed = true;
+        if (this.animationFrameId !== null) {
+            cancelAnimationFrame(this.animationFrameId);
+        }
+        window.removeEventListener('resize', this.onResize);
+
+        this.controls.dispose();
+        this.renderer.dispose();
+
+        if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+            this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+        }
+    }
+}
