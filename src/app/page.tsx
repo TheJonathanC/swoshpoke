@@ -19,7 +19,7 @@ const PokerGame = dynamic(() => import('@/components/poker/PokerGame'), {
                 fontWeight: 'bold'
             }}
         >
-            Loading 3D Texas Hold &apos;em Poker...
+            Loading Swoshpoke...
         </div>
     )
 });

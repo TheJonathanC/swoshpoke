@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "3D Texas Hold 'em Poker",
-  description: "3D Texas Hold 'em Poker game built with Next.js and Three.js",
+  title: "Swoshpoke",
+  description: "Swoshpoke - 3D Texas Hold 'em Poker",
 };
 
 export default function RootLayout({
