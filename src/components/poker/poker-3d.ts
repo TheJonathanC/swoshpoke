@@ -18,7 +18,7 @@ export interface Player3DPosition {
 export const PLAYER_POSITIONS: Player3DPosition[] = [
     { x: 0, z: 6.5, betX: -1.0, betZ: 3.2, stackX: 2.5, stackZ: 5.5, rotY: 0, badgeX: 0, badgeZ: 14 },
     { x: -8.8, z: 0, betX: -4.5, betZ: -1.0, stackX: -7.5, stackZ: -2.5, rotY: Math.PI / 2, badgeX: -15, badgeZ: 0 },
-    { x: 0, z: -6.5, betX: 1.0, betZ: -3.2, stackX: -2.5, stackZ: -5.5, rotY: Math.PI, badgeX: 0, badgeZ: -14 },
+    { x: 0, z: -6.5, betX: 1.0, betZ: -3.2, stackX: -2.5, stackZ: -5.5, rotY: Math.PI, badgeX: 0, badgeZ: -9.5 },
     { x: 8.8, z: 0, betX: 4.5, betZ: 1.0, stackX: 7.5, stackZ: 2.5, rotY: -Math.PI / 2, badgeX: 15, badgeZ: 0 }
 ];
 
@@ -559,6 +559,15 @@ export class Poker3DScene {
 
             x = Math.max(padding, Math.min(window.innerWidth - padding, x));
             y = Math.max(padding, Math.min(window.innerHeight - padding, y));
+
+            // Prevent badges from overlapping the top-center pot display
+            const centerX = window.innerWidth / 2;
+            const potHalfWidth = 150;
+            const safeTop = 150; // pot box ends at ~75px; with translate(-50%, -100%) badge top is y - 60px >= 90px
+
+            if (Math.abs(x - centerX) < potHalfWidth && y < safeTop) {
+                y = safeTop;
+            }
 
             coords.push({ id: i, x, y });
         });
