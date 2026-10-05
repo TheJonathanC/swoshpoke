@@ -127,38 +127,65 @@ export class Poker3DScene {
         const width = window.innerWidth;
         const height = window.innerHeight;
         const aspect = width / height;
-        const isPortrait = aspect < 1.0;
 
         this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-        if (aspect < 1.45) {
-            const distFactor = Math.min(2.5, 1.45 / aspect);
-            this.camera.position.set(0, 18 * distFactor, 16 * distFactor);
-            this.camera.fov = isPortrait ? 52 : 45;
+        if (aspect < 1.0) {
+            // Mobile portrait & vertical tablet
+            const t = THREE.MathUtils.clamp((1.0 - aspect) / 0.55, 0, 1);
+            const camY = THREE.MathUtils.lerp(22, 27, t);
+            const camZ = THREE.MathUtils.lerp(18, 21, t);
+            const fov = THREE.MathUtils.lerp(50, 64, t);
+
+            this.camera.position.set(0, camY, camZ);
+            this.camera.fov = fov;
             if (this.controls) {
-                this.controls.minDistance = 8 * distFactor * 0.7;
-                this.controls.maxDistance = 25 * distFactor * 1.3;
+                this.controls.minDistance = 14;
+                this.controls.maxDistance = 45;
+            }
+
+            const humanHand = this.playerObjects[0]?.handGroup;
+            if (humanHand && humanHand.parent === this.camera) {
+                const cardY = THREE.MathUtils.lerp(-2.8, -2.3, t);
+                const cardZ = THREE.MathUtils.lerp(-7.8, -6.8, t);
+                humanHand.position.set(0, cardY, cardZ);
+            }
+        } else if (aspect < 1.5) {
+            // Square / iPad landscape
+            const t = THREE.MathUtils.clamp((1.5 - aspect) / 0.5, 0, 1);
+            const camY = THREE.MathUtils.lerp(18, 22, t);
+            const camZ = THREE.MathUtils.lerp(16, 18, t);
+            const fov = THREE.MathUtils.lerp(45, 50, t);
+
+            this.camera.position.set(0, camY, camZ);
+            this.camera.fov = fov;
+            if (this.controls) {
+                this.controls.minDistance = 10;
+                this.controls.maxDistance = 35;
+            }
+
+            const humanHand = this.playerObjects[0]?.handGroup;
+            if (humanHand && humanHand.parent === this.camera) {
+                humanHand.position.set(0, -3.0, -7.8);
             }
         } else {
+            // Standard desktop
             this.camera.position.set(0, 18, 16);
             this.camera.fov = 45;
             if (this.controls) {
                 this.controls.minDistance = 10;
                 this.controls.maxDistance = 25;
             }
+
+            const humanHand = this.playerObjects[0]?.handGroup;
+            if (humanHand && humanHand.parent === this.camera) {
+                humanHand.position.set(0, -3.2, -8.0);
+            }
         }
 
         this.camera.aspect = aspect;
         this.camera.updateProjectionMatrix();
-
-        // Dynamically adjust human cards attachment position based on orientation
-        const humanHand = this.playerObjects[0]?.handGroup;
-        if (humanHand && humanHand.parent === this.camera) {
-            const cardY = isPortrait ? -2.0 : -3.2;
-            const cardZ = isPortrait ? -7.5 : -8.0;
-            humanHand.position.set(0, cardY, cardZ);
-        }
     }
 
     private onResize = (): void => {
@@ -394,9 +421,16 @@ export class Poker3DScene {
 
             if (p.isHuman) {
                 const aspect = window.innerWidth / window.innerHeight;
-                const isPortrait = aspect < 1.0;
-                const cardY = isPortrait ? -2.0 : -3.2;
-                const cardZ = isPortrait ? -7.5 : -8.0;
+                let cardY = -3.2;
+                let cardZ = -8.0;
+                if (aspect < 1.0) {
+                    const t = THREE.MathUtils.clamp((1.0 - aspect) / 0.55, 0, 1);
+                    cardY = THREE.MathUtils.lerp(-2.8, -2.3, t);
+                    cardZ = THREE.MathUtils.lerp(-7.8, -6.8, t);
+                } else if (aspect < 1.5) {
+                    cardY = -3.0;
+                    cardZ = -7.8;
+                }
                 handGroup.position.set(0, cardY, cardZ);
                 this.camera.add(handGroup);
 
@@ -601,9 +635,25 @@ export class Poker3DScene {
         const coords: { id: number; x: number; y: number }[] = [];
 
         PLAYER_POSITIONS.forEach((pos, i) => {
-            if (i === 0) return; // Player 0 (Human) is statically positioned via CSS above log-box / mobile top-left
+            if (i === 0) return; // Player 0 (Human) is handled via CSS/controls
 
-            tempV.set(pos.badgeX, 1.2, pos.badgeZ);
+            let bx = pos.badgeX;
+            let bz = pos.badgeZ;
+
+            if (isMobile) {
+                if (i === 1) { // Bot 1 (Left)
+                    bx = -7.8;
+                    bz = -2.2;
+                } else if (i === 3) { // Bot 3 (Right)
+                    bx = 7.8;
+                    bz = -2.2;
+                } else if (i === 2) { // Bot 2 (Top)
+                    bx = 0;
+                    bz = -8.8;
+                }
+            }
+
+            tempV.set(bx, 1.2, bz);
             tempV.project(this.camera);
 
             let x = (tempV.x * 0.5 + 0.5) * width;
@@ -615,7 +665,7 @@ export class Poker3DScene {
             // Prevent badges from overlapping the top-center pot display
             const centerX = width / 2;
             const potHalfWidth = isMobile ? 110 : 150;
-            const safeTop = isMobile ? 100 : 150;
+            const safeTop = isMobile ? 95 : 150;
 
             if (Math.abs(x - centerX) < potHalfWidth && y < safeTop) {
                 y = safeTop;

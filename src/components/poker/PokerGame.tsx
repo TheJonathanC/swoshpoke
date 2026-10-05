@@ -161,6 +161,11 @@ export default function PokerGame() {
         }
     };
 
+    const handleSetRaiseAmount = (val: number) => {
+        const clamped = Math.max(sliderMin, Math.min(sliderMax, Math.round(val / 10) * 10));
+        setRaiseValue(clamped);
+    };
+
     const handleRaise = () => {
         if (!controlsEnabled || !engineRef.current) return;
         setControlsEnabled(false);
@@ -265,8 +270,82 @@ export default function PokerGame() {
                     </div>
                 </div>
 
-                {/* Bottom Right Controls */}
-                <div id="controls" className="hud-element">
+                {/* Bottom Controls Dock */}
+                <div id="controls" className={`hud-element ${controlsEnabled ? 'turn-active' : ''}`}>
+                    {/* Status header with Player Info and Turn Indicator */}
+                    <div className="controls-header">
+                        <div className="player-stat">
+                            <span className="stat-label">CHIPS</span>
+                            <span className="stat-value chips-gold">${human?.chips ?? 0}</span>
+                        </div>
+                        <div className={`turn-indicator ${controlsEnabled ? 'my-turn' : ''}`}>
+                            {controlsEnabled
+                                ? '🟢 YOUR TURN'
+                                : gameState?.stage === 'SHOWDOWN'
+                                ? '🏆 SHOWDOWN'
+                                : !gameState?.handInProgress
+                                ? '🏆 HAND FINISHED'
+                                : `⏳ ${gameState?.players[gameState.currentTurnIdx]?.name ?? 'Bot'}'s turn`}
+                        </div>
+                        <div className="player-stat">
+                            <span className="stat-label">ROUND BET</span>
+                            <span className="stat-value bet-green">${human?.currentBet ?? 0}</span>
+                        </div>
+                    </div>
+
+                    {/* Quick Bet Presets */}
+                    <div className="quick-presets">
+                        <button
+                            type="button"
+                            className="preset-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(sliderMin)}
+                        >
+                            Min
+                        </button>
+                        <button
+                            type="button"
+                            className="preset-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(raiseValue - (gameState?.bigBlind ?? 20))}
+                        >
+                            -
+                        </button>
+                        <span id="raise-val">${raiseValue}</span>
+                        <button
+                            type="button"
+                            className="preset-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(raiseValue + (gameState?.bigBlind ?? 20))}
+                        >
+                            +
+                        </button>
+                        <button
+                            type="button"
+                            className="preset-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, (gameState?.highestCurrentBet ?? 20) * 2))}
+                        >
+                            2x
+                        </button>
+                        <button
+                            type="button"
+                            className="preset-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, (gameState?.pot ?? 0)))}
+                        >
+                            Pot
+                        </button>
+                        <button
+                            type="button"
+                            className="preset-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(sliderMax)}
+                        >
+                            All-In
+                        </button>
+                    </div>
+
                     <div className="raise-slider-container">
                         <input
                             type="range"
@@ -278,7 +357,6 @@ export default function PokerGame() {
                             disabled={!controlsEnabled}
                             onChange={(e) => setRaiseValue(parseInt(e.target.value, 10))}
                         />
-                        <span id="raise-val">${raiseValue}</span>
                     </div>
 
                     <div className="btn-group">
@@ -304,18 +382,18 @@ export default function PokerGame() {
                             disabled={!controlsEnabled}
                             onClick={handleRaise}
                         >
-                            Raise
+                            Raise ${raiseValue}
                         </button>
                     </div>
 
                     {showNextHand && (
                         <button
                             id="btn-next-hand"
-                            className="poker-btn primary"
-                            style={{ width: '100%', marginTop: '5px' }}
+                            className="poker-btn primary next-hand-highlight"
+                            style={{ width: '100%', marginTop: '6px' }}
                             onClick={handleNextHand}
                         >
-                            Next Hand
+                            ✨ Next Hand ✨
                         </button>
                     )}
                 </div>

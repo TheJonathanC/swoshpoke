@@ -7,7 +7,6 @@
     overflow: hidden;
     user-select: none;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    touch-action: none;
 }
 
 #canvas-container {
@@ -17,6 +16,7 @@
     top: 0;
     left: 0;
     z-index: 1;
+    touch-action: none;
 }
 
 /* HUD Overlay */
@@ -45,7 +45,7 @@
 }
 
 .pot-display {
-    background: rgba(10, 15, 25, 0.85);
+    background: rgba(10, 15, 25, 0.88);
     backdrop-filter: blur(8px);
     padding: 10px 30px;
     border-radius: 30px;
@@ -111,46 +111,188 @@
     font-weight: bold;
 }
 
+/* Controls Dock */
 #controls {
     position: absolute;
     bottom: 20px;
     right: 20px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    background: rgba(10, 15, 25, 0.85);
-    backdrop-filter: blur(8px);
-    padding: 18px;
+    gap: 10px;
+    background: rgba(10, 15, 25, 0.9);
+    backdrop-filter: blur(10px);
+    padding: 16px;
     border-radius: 14px;
     border: 1px solid #334155;
-    width: 300px;
+    width: 320px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    touch-action: auto;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#controls.turn-active {
+    border-color: #22c55e;
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.25), 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+/* Controls Status Header */
+.controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.player-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 0.92rem;
+    font-weight: 800;
+}
+
+.chips-gold {
+    color: #fbc02d;
+}
+
+.bet-green {
+    color: #4ade80;
+}
+
+.turn-indicator {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 14px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid #475569;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.turn-indicator.my-turn {
+    background: rgba(21, 128, 61, 0.3);
+    border-color: #22c55e;
+    color: #4ade80;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+    animation: turnPulse 1.8s infinite;
+}
+
+@keyframes turnPulse {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
+    }
+}
+
+/* Quick Bet Presets */
+.quick-presets {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.preset-btn {
+    flex: 1;
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+
+.preset-btn:hover:not(:disabled) {
+    background: #334155;
+    color: white;
+    border-color: #64748b;
+}
+
+.preset-btn:active:not(:disabled) {
+    transform: scale(0.92);
+    background: #fbc02d;
+    color: #0f172a;
+}
+
+.preset-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+#raise-val {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #fbc02d;
+    min-width: 50px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.raise-slider-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.raise-slider-container input[type='range'] {
+    width: 100%;
+    cursor: pointer;
+    accent-color: #fbc02d;
+    height: 6px;
+    touch-action: pan-x;
 }
 
 .btn-group {
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 .poker-btn {
     flex: 1;
     background: #1e293b;
     color: white;
-    border: 1px solid #475569;
-    padding: 12px;
+    border: 1.5px solid #475569;
+    padding: 11px 8px;
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.9rem;
+    transition: all 0.15s;
+    font-size: 0.88rem;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    white-space: nowrap;
 }
 
 .poker-btn:hover:not(:disabled) {
     background: #334155;
+}
+
+.poker-btn:active:not(:disabled) {
+    transform: scale(0.96);
 }
 
 .poker-btn:disabled {
@@ -174,6 +316,23 @@
 
 .poker-btn.danger:hover:not(:disabled) {
     background: #991b1b;
+}
+
+.next-hand-highlight {
+    background: linear-gradient(135deg, #15803d, #16a34a) !important;
+    border-color: #4ade80 !important;
+    box-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+    font-size: 0.95rem;
+    animation: nextHandPulse 1.4s infinite alternate;
+}
+
+@keyframes nextHandPulse {
+    0% {
+        box-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
+    }
+    100% {
+        box-shadow: 0 0 20px rgba(74, 222, 128, 0.8);
+    }
 }
 
 .player-badge {
@@ -231,20 +390,6 @@
     margin-top: 2px;
 }
 
-.raise-slider-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #fbc02d;
-    font-weight: bold;
-}
-
-.raise-slider-container input[type='range'] {
-    flex-grow: 1;
-    cursor: pointer;
-    accent-color: #fbc02d;
-}
-
 /* ==========================================================================
    Responsive Adaptations (Tablet & Mobile)
    ========================================================================== */
@@ -261,7 +406,7 @@
     }
 
     #controls {
-        width: 270px;
+        width: 290px;
         padding: 14px;
         bottom: 16px;
         right: 16px;
@@ -283,35 +428,20 @@
 /* Mobile Screens (Phones & Small Viewports) */
 @media (max-width: 767px) {
     #ui-overlay {
-        padding: 12px;
+        padding: 10px;
+    }
+
+    /* On mobile, Human player info is built directly into #controls header, so hide floating badge */
+    #badge-0 {
+        display: none !important;
     }
 
     /* Compact Pot Display at Top Center */
     .pot-display {
-        font-size: 1.1rem;
-        padding: 6px 18px;
+        font-size: 1.05rem;
+        padding: 5px 16px;
         border-radius: 20px;
         border-width: 1.5px;
-    }
-
-    /* Human Badge Positioned at Top Left on Mobile */
-    #badge-0 {
-        position: absolute;
-        top: 12px;
-        left: 12px;
-        bottom: auto;
-        transform: none;
-        padding: 6px 10px;
-        font-size: 0.75rem;
-        min-width: 82px;
-        border-radius: 8px;
-        border-width: 1.5px;
-        z-index: 15;
-    }
-
-    #badge-0 .bet-round {
-        font-size: 0.7rem;
-        padding: 1px 3px;
     }
 
     /* Mobile Log Button at Top Right */
@@ -320,18 +450,20 @@
         align-items: center;
         gap: 4px;
         position: absolute;
-        top: 12px;
-        right: 12px;
+        top: 10px;
+        right: 10px;
         background: rgba(15, 23, 42, 0.9);
         backdrop-filter: blur(8px);
         border: 1.5px solid #334155;
         border-radius: 20px;
-        padding: 6px 12px;
+        padding: 5px 12px;
         font-size: 0.75rem;
         font-weight: bold;
         color: #fbc02d;
         cursor: pointer;
         z-index: 15;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     }
 
@@ -346,10 +478,10 @@
         align-items: center;
         gap: 6px;
         position: absolute;
-        top: 54px;
+        top: 48px;
         left: 50%;
         transform: translateX(-50%);
-        max-width: 88vw;
+        max-width: 90vw;
         background: rgba(10, 15, 25, 0.85);
         backdrop-filter: blur(6px);
         border: 1px solid rgba(51, 65, 85, 0.7);
@@ -362,6 +494,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         z-index: 12;
+        touch-action: manipulation;
     }
 
     .mobile-log-ticker .ticker-badge {
@@ -382,52 +515,49 @@
     /* Player Badges on Mobile */
     .player-badge {
         padding: 5px 8px;
-        font-size: 0.72rem;
-        min-width: 72px;
+        font-size: 0.7rem;
+        min-width: 70px;
         border-radius: 8px;
         border-width: 1.5px;
     }
 
     .player-badge .chips {
-        font-size: 0.75rem;
+        font-size: 0.74rem;
     }
 
     .player-badge .bet-round {
-        font-size: 0.68rem;
+        font-size: 0.65rem;
         margin-top: 2px;
+        padding: 1px 3px;
     }
 
     .player-badge .action {
-        font-size: 0.68rem;
-        min-height: 13px;
+        font-size: 0.65rem;
+        min-height: 12px;
     }
 
     /* Bottom Controls Docked on Mobile */
     #controls {
         position: absolute;
-        bottom: 10px;
-        left: 10px;
-        right: 10px;
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
         width: auto;
         max-width: 440px;
         margin: 0 auto;
-        padding: 12px;
-        border-radius: 12px;
+        padding: 10px 12px;
+        border-radius: 14px;
         gap: 8px;
         z-index: 20;
     }
 
-    .raise-slider-container {
-        font-size: 0.85rem;
-        gap: 8px;
-    }
-
-    .btn-group {
-        gap: 8px;
+    .preset-btn {
+        padding: 5px 4px;
+        font-size: 0.7rem;
     }
 
     .poker-btn {
-        padding: 10px 6px;
+        padding: 11px 4px;
         font-size: 0.85rem;
         min-height: 44px;
     }
@@ -441,18 +571,18 @@
         display: flex;
         flex-direction: column;
         position: fixed;
-        top: 54px;
-        left: 12px;
-        right: 12px;
-        bottom: 175px;
+        top: 48px;
+        left: 10px;
+        right: 10px;
+        bottom: 185px;
         width: auto;
         height: auto;
-        max-height: calc(100vh - 230px);
+        max-height: calc(100vh - 240px);
         background: rgba(10, 15, 25, 0.95);
         backdrop-filter: blur(14px);
         border: 1.5px solid #475569;
         border-radius: 16px;
-        padding: 14px;
+        padding: 12px;
         z-index: 50;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.75);
     }
@@ -461,12 +591,12 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding-bottom: 8px;
+        padding-bottom: 6px;
         border-bottom: 1px solid #334155;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         color: #fbc02d;
         font-weight: bold;
-        font-size: 0.88rem;
+        font-size: 0.85rem;
     }
 
     .log-mobile-close {
@@ -481,59 +611,79 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-    }
-
-    .log-mobile-close:hover {
-        background: #334155;
+        touch-action: manipulation;
     }
 }
 
-/* Mobile Landscape (Very short vertical screens e.g. phones in landscape) */
+/* Mobile Landscape (Phones held horizontally) */
 @media (max-height: 520px) and (orientation: landscape) {
     #ui-overlay {
-        padding: 8px;
+        padding: 6px;
     }
 
     .pot-display {
-        font-size: 0.95rem;
-        padding: 4px 14px;
+        font-size: 0.92rem;
+        padding: 3px 12px;
     }
 
     #badge-0 {
-        top: 8px;
-        left: 8px;
-        padding: 4px 8px;
-        font-size: 0.7rem;
+        display: none !important;
     }
 
     .mobile-log-btn {
         display: flex;
-        top: 8px;
-        right: 8px;
-        padding: 4px 8px;
-        font-size: 0.7rem;
+        top: 6px;
+        right: 6px;
+        padding: 3px 8px;
+        font-size: 0.68rem;
+    }
+
+    .mobile-log-ticker {
+        display: none;
     }
 
     #controls {
         position: absolute;
-        bottom: 8px;
-        right: 8px;
+        bottom: 6px;
+        right: 6px;
         left: auto;
         width: 250px;
         padding: 8px;
-        gap: 6px;
+        gap: 5px;
+    }
+
+    .controls-header {
+        padding-bottom: 4px;
+    }
+
+    .stat-label {
+        font-size: 0.55rem;
+    }
+
+    .stat-value {
+        font-size: 0.78rem;
+    }
+
+    .turn-indicator {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+    }
+
+    .preset-btn {
+        padding: 3px;
+        font-size: 0.65rem;
     }
 
     .poker-btn {
-        padding: 6px;
-        min-height: 36px;
-        font-size: 0.75rem;
+        padding: 6px 4px;
+        min-height: 34px;
+        font-size: 0.72rem;
     }
 
     #log-box.mobile-open {
-        top: 40px;
-        bottom: 10px;
-        left: 10px;
+        top: 36px;
+        bottom: 6px;
+        left: 6px;
         right: auto;
         width: 280px;
     }
