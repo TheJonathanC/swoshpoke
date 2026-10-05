@@ -86,6 +86,13 @@ export class Poker3DScene {
         this.controls.maxPolarAngle = Math.PI / 2.2;
         this.controls.minDistance = 10;
         this.controls.maxDistance = 25;
+        this.controls.touches = {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN
+        };
+
+        // Adjust camera responsively for initial screen size
+        this.updateCameraResponsive();
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
@@ -114,11 +121,48 @@ export class Poker3DScene {
         this.animationFrameId = requestAnimationFrame(this.animate);
     }
 
-    private onResize = (): void => {
+    public updateCameraResponsive(): void {
         if (!this.camera || !this.renderer) return;
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const aspect = width / height;
+        const isPortrait = aspect < 1.0;
+
+        this.renderer.setSize(width, height);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        if (aspect < 1.45) {
+            const distFactor = Math.min(2.5, 1.45 / aspect);
+            this.camera.position.set(0, 18 * distFactor, 16 * distFactor);
+            this.camera.fov = isPortrait ? 52 : 45;
+            if (this.controls) {
+                this.controls.minDistance = 8 * distFactor * 0.7;
+                this.controls.maxDistance = 25 * distFactor * 1.3;
+            }
+        } else {
+            this.camera.position.set(0, 18, 16);
+            this.camera.fov = 45;
+            if (this.controls) {
+                this.controls.minDistance = 10;
+                this.controls.maxDistance = 25;
+            }
+        }
+
+        this.camera.aspect = aspect;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+        // Dynamically adjust human cards attachment position based on orientation
+        const humanHand = this.playerObjects[0]?.handGroup;
+        if (humanHand && humanHand.parent === this.camera) {
+            const cardY = isPortrait ? -2.0 : -3.2;
+            const cardZ = isPortrait ? -7.5 : -8.0;
+            humanHand.position.set(0, cardY, cardZ);
+        }
+    }
+
+    private onResize = (): void => {
+        this.updateCameraResponsive();
     };
 
     private generateFeltTexture(): THREE.CanvasTexture {
@@ -349,7 +393,11 @@ export class Poker3DScene {
             this.playerObjects[i].handGroup = handGroup;
 
             if (p.isHuman) {
-                handGroup.position.set(0, -3.2, -8.0);
+                const aspect = window.innerWidth / window.innerHeight;
+                const isPortrait = aspect < 1.0;
+                const cardY = isPortrait ? -2.0 : -3.2;
+                const cardZ = isPortrait ? -7.5 : -8.0;
+                handGroup.position.set(0, cardY, cardZ);
                 this.camera.add(handGroup);
 
                 p.hand.forEach((cardData, cIdx) => {
@@ -544,29 +592,41 @@ export class Poker3DScene {
     private updateHUDPositions(): void {
         if (!this.onHUDUpdate) return;
         const tempV = new THREE.Vector3();
-        const padding = 70;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const isMobile = width < 768;
+        const paddingX = isMobile ? 38 : 70;
+        const paddingY = isMobile ? 45 : 70;
 
         const coords: { id: number; x: number; y: number }[] = [];
 
         PLAYER_POSITIONS.forEach((pos, i) => {
-            if (i === 0) return; // Player 0 (Human) is statically positioned via CSS above log-box
+            if (i === 0) return; // Player 0 (Human) is statically positioned via CSS above log-box / mobile top-left
 
             tempV.set(pos.badgeX, 1.2, pos.badgeZ);
             tempV.project(this.camera);
 
-            let x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
-            let y = (tempV.y * -0.5 + 0.5) * window.innerHeight;
+            let x = (tempV.x * 0.5 + 0.5) * width;
+            let y = (tempV.y * -0.5 + 0.5) * height;
 
-            x = Math.max(padding, Math.min(window.innerWidth - padding, x));
-            y = Math.max(padding, Math.min(window.innerHeight - padding, y));
+            x = Math.max(paddingX, Math.min(width - paddingX, x));
+            y = Math.max(paddingY, Math.min(height - paddingY, y));
 
             // Prevent badges from overlapping the top-center pot display
-            const centerX = window.innerWidth / 2;
-            const potHalfWidth = 150;
-            const safeTop = 150; // pot box ends at ~75px; with translate(-50%, -100%) badge top is y - 60px >= 90px
+            const centerX = width / 2;
+            const potHalfWidth = isMobile ? 110 : 150;
+            const safeTop = isMobile ? 100 : 150;
 
             if (Math.abs(x - centerX) < potHalfWidth && y < safeTop) {
                 y = safeTop;
+            }
+
+            // On mobile, prevent badges from overlapping the bottom controls dock
+            if (isMobile) {
+                const bottomControlsHeight = 160;
+                if (y > height - bottomControlsHeight) {
+                    y = height - bottomControlsHeight;
+                }
             }
 
             coords.push({ id: i, x, y });

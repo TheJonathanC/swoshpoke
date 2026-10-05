@@ -23,6 +23,7 @@ export default function PokerGame() {
     const [raiseValue, setRaiseValue] = useState<number>(0);
     const [controlsEnabled, setControlsEnabled] = useState<boolean>(false);
     const [showNextHand, setShowNextHand] = useState<boolean>(false);
+    const [isLogOpenMobile, setIsLogOpenMobile] = useState<boolean>(false);
 
     const logCounter = useRef(0);
 
@@ -178,12 +179,33 @@ export default function PokerGame() {
             <div id="canvas-container" ref={canvasContainerRef} />
 
             <div id="ui-overlay">
+                {/* Mobile Log Toggle Button (Top Right) */}
+                <button
+                    id="mobile-log-toggle"
+                    className="mobile-log-btn hud-element"
+                    onClick={() => setIsLogOpenMobile((prev) => !prev)}
+                    aria-label="Toggle game history"
+                >
+                    📜 Log {logs.length > 0 && <span className="log-count">({logs.length})</span>}
+                </button>
+
                 {/* Top Pot Bar */}
                 <div id="top-bar" className="hud-element">
                     <div className="pot-display">
                         POT: $<span id="pot-amount">{gameState?.pot ?? 0}</span>
                     </div>
                 </div>
+
+                {/* Mobile Compact Recent-Action Ticker */}
+                {logs.length > 0 && (
+                    <div
+                        className="mobile-log-ticker hud-element"
+                        onClick={() => setIsLogOpenMobile(true)}
+                    >
+                        <span className="ticker-badge">LATEST</span>
+                        <span className="ticker-text">{logs[0].message}</span>
+                    </div>
+                )}
 
                 {/* 2D Player HUD Badges */}
                 <div id="badges-container">
@@ -192,7 +214,7 @@ export default function PokerGame() {
                         const isHuman = idx === 0;
 
                         const style: React.CSSProperties = isHuman
-                            ? {} // Positioned statically above the log box in CSS
+                            ? {} // Positioned statically via CSS (desktop: bottom-left, mobile: top-left)
                             : hudPositions[idx]
                             ? {
                                   left: `${hudPositions[idx].x}px`,
@@ -216,16 +238,31 @@ export default function PokerGame() {
                     })}
                 </div>
 
-                {/* Bottom Left Log Box */}
-                <div id="log-box" className="hud-element">
-                    {logs.map((entry) => (
-                        <div
-                            key={entry.id}
-                            className={`log-entry ${entry.highlight ? 'highlight' : ''}`}
+                {/* Log Box (Desktop bottom-left, Mobile drawer) */}
+                <div
+                    id="log-box"
+                    className={`hud-element ${isLogOpenMobile ? 'mobile-open' : ''}`}
+                >
+                    <div className="log-mobile-header">
+                        <span className="log-mobile-title">📜 Hand History</span>
+                        <button
+                            className="log-mobile-close"
+                            onClick={() => setIsLogOpenMobile(false)}
+                            aria-label="Close log drawer"
                         >
-                            {entry.message}
-                        </div>
-                    ))}
+                            ✕
+                        </button>
+                    </div>
+                    <div className="log-entries-scroll">
+                        {logs.map((entry) => (
+                            <div
+                                key={entry.id}
+                                className={`log-entry ${entry.highlight ? 'highlight' : ''}`}
+                            >
+                                {entry.message}
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Bottom Right Controls */}
