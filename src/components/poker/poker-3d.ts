@@ -194,22 +194,41 @@ export class Poker3DScene {
 
     private generateFeltTexture(): THREE.CanvasTexture {
         const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
+        canvas.width = 1024;
+        canvas.height = 1024;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            ctx.fillStyle = '#14532d';
-            ctx.fillRect(0, 0, 512, 512);
+            // Luxury tournament emerald with radial lighting vignette
+            const grad = ctx.createRadialGradient(512, 512, 80, 512, 512, 512);
+            grad.addColorStop(0, '#134e2c');
+            grad.addColorStop(0.65, '#0c351e');
+            grad.addColorStop(1, '#072414');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 1024, 1024);
 
-            for (let i = 0; i < 30000; i++) {
-                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.025)';
-                ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+            // Subtle felt micro-weave texture
+            for (let i = 0; i < 40000; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.025)';
+                ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 2, 2);
             }
+
+            // Elegant inner golden betting line oval on the felt
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.24)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.ellipse(512, 512, 380, 260, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner subtle accent ring
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.1)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(512, 512, 360, 240, 0, 0, Math.PI * 2);
+            ctx.stroke();
         }
         const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(4, 4);
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
         return texture;
     }
 
@@ -225,7 +244,7 @@ export class Poker3DScene {
         tableGroup.add(feltMesh);
 
         const railGeo = new THREE.CylinderGeometry(11.8, 11.8, 0.5, 64);
-        const railMat = new THREE.MeshStandardMaterial({ color: 0x1e1b18, roughness: 0.5, metalness: 0.1 });
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.65, metalness: 0.15 });
         const railMesh = new THREE.Mesh(railGeo, railMat);
         railMesh.scale.set(1.15, 1, 0.75);
         railMesh.position.y = -0.05;
@@ -237,46 +256,96 @@ export class Poker3DScene {
 
     private createCardTexture(cardData: Card | null): THREE.CanvasTexture {
         const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 384;
+        canvas.width = 512;
+        canvas.height = 768;
         const ctx = canvas.getContext('2d');
         if (!ctx) return new THREE.CanvasTexture(canvas);
 
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, 256, 384);
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = '#cbd5e1';
-        ctx.strokeRect(6, 6, 244, 372);
-
         if (cardData) {
-            ctx.fillStyle = cardData.color;
-            ctx.font = 'bold 44px sans-serif';
-            ctx.fillText(cardData.value, 18, 54);
-            ctx.fillText(cardData.suit, 18, 100);
+            // Card Front: Crisp, premium ivory paper finish
+            ctx.fillStyle = '#faf8f5';
+            ctx.fillRect(0, 0, 512, 768);
 
+            // Delicate luxury inner border
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.12)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(16, 16, 480, 736);
+
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(24, 24, 464, 720);
+
+            // Color selection (crimson red or obsidian black)
+            const isRed = cardData.color === '#dc2626';
+            ctx.fillStyle = isRed ? '#be123c' : '#0f172a';
+
+            // Top-left corner index
+            ctx.font = 'bold 84px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(cardData.value, 40, 42);
+
+            ctx.font = '72px system-ui, -apple-system, sans-serif';
+            ctx.fillText(cardData.suit, 42, 136);
+
+            // Inverted bottom-right corner index
             ctx.save();
-            ctx.translate(256, 384);
+            ctx.translate(512, 768);
             ctx.rotate(Math.PI);
-            ctx.fillText(cardData.value, 18, 54);
-            ctx.fillText(cardData.suit, 18, 100);
+            ctx.font = 'bold 84px system-ui, -apple-system, sans-serif';
+            ctx.fillText(cardData.value, 40, 42);
+            ctx.font = '72px system-ui, -apple-system, sans-serif';
+            ctx.fillText(cardData.suit, 42, 136);
             ctx.restore();
 
-            ctx.font = '100px sans-serif';
+            // Center large suit glyph
+            ctx.font = '190px system-ui, -apple-system, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(cardData.suit, 128, 192);
+            ctx.fillText(cardData.suit, 256, 384);
         } else {
-            ctx.fillStyle = '#1e3a8a';
-            ctx.fillRect(10, 10, 236, 364);
-            ctx.fillStyle = '#3b82f6';
-            for (let i = 20; i < 230; i += 20) {
-                for (let j = 20; j < 360; j += 20) {
-                    if ((i + j) % 40 === 0) ctx.fillRect(i, j, 10, 10);
-                }
+            // Card Back: Royal Casino Midnight Navy & Gold Diamond Lattice
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, 512, 768);
+
+            // Crisp white frame
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(16, 16, 480, 736);
+
+            // Deep navy core
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(24, 24, 464, 720);
+
+            // Intricate gold diamond lattice
+            ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+            ctx.lineWidth = 2.5;
+            const step = 32;
+            for (let x = -768; x < 1280; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 24);
+                ctx.lineTo(x + 720, 744);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(x, 744);
+                ctx.lineTo(x + 720, 24);
+                ctx.stroke();
             }
-            ctx.strokeStyle = '#ffffff';
+
+            // Central gold medallion seal
+            ctx.fillStyle = '#090d16';
+            ctx.beginPath();
+            ctx.arc(256, 384, 90, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#d4af37';
             ctx.lineWidth = 4;
-            ctx.strokeRect(16, 16, 224, 352);
+            ctx.stroke();
+
+            ctx.fillStyle = '#d4af37';
+            ctx.font = 'bold 44px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('♠', 256, 384);
         }
 
         const texture = new THREE.CanvasTexture(canvas);

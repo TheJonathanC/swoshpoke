@@ -1,17 +1,37 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { PokerEngine } from '@/engine/poker-engine';
 import { GameStateSnapshot } from '@/engine/types';
 import { evaluateBestHand } from '@/engine/hand-evaluator';
 import { Poker3DScene } from './poker-3d';
 import HandHierarchyModal from './HandHierarchyModal';
+import {
+    TrophyIcon,
+    HistoryIcon,
+    CloseIcon,
+    ChipIcon,
+    SuitSpade,
+    SuitHeart,
+    SuitDiamond,
+    SuitClub
+} from './poker-icons';
 import './poker.css';
 
 interface LogItem {
     id: number;
     message: string;
     highlight?: boolean;
+    timestamp: string;
+}
+
+function RenderCardSuit({ suit, color }: { suit: string; color: string }) {
+    const isRed = color === '#dc2626' || color === 'red';
+    const c = isRed ? '#e11d48' : '#0f172a';
+    if (suit === '♠') return <SuitSpade className="w-3.5 h-3.5" color={c} />;
+    if (suit === '♥') return <SuitHeart className="w-3.5 h-3.5" color={c} />;
+    if (suit === '♦') return <SuitDiamond className="w-3.5 h-3.5" color={c} />;
+    return <SuitClub className="w-3.5 h-3.5" color={c} />;
 }
 
 export default function PokerGame() {
@@ -25,11 +45,101 @@ export default function PokerGame() {
     const [raiseValue, setRaiseValue] = useState<number>(0);
     const [controlsEnabled, setControlsEnabled] = useState<boolean>(false);
     const [showNextHand, setShowNextHand] = useState<boolean>(false);
-    const [isLogOpenMobile, setIsLogOpenMobile] = useState<boolean>(false);
+    const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState<boolean>(false);
     const [showHandHierarchy, setShowHandHierarchy] = useState<boolean>(false);
 
     const logCounter = useRef(0);
 
+    const human = gameState?.players[0];
+    const callAmt = gameState && human ? gameState.highestCurrentBet - human.currentBet : 0;
+    const minRaiseTotal = gameState && human ? gameState.highestCurrentBet + gameState.bigBlind : 0;
+    const sliderMax = human ? human.chips + human.currentBet : 100;
+    const sliderMin = Math.min(minRaiseTotal, sliderMax);
+
+    // Handlers
+    const handleFold = useCallback(() => {
+        if (!controlsEnabled || !engineRef.current) return;
+        setControlsEnabled(false);
+        engineRef.current.fold(0);
+    }, [controlsEnabled]);
+
+    const handleCheckCall = useCallback(() => {
+        if (!controlsEnabled || !engineRef.current) return;
+        setControlsEnabled(false);
+        if (callAmt === 0) {
+            engineRef.current.check(0);
+        } else {
+            engineRef.current.call(0);
+        }
+    }, [controlsEnabled, callAmt]);
+
+    const handleSetRaiseAmount = useCallback((val: number) => {
+        const clamped = Math.max(sliderMin, Math.min(sliderMax, Math.round(val / 10) * 10));
+        setRaiseValue(clamped);
+    }, [sliderMin, sliderMax]);
+
+    const handleRaise = useCallback(() => {
+        if (!controlsEnabled || !engineRef.current) return;
+        setControlsEnabled(false);
+        engineRef.current.raise(raiseValue, 0);
+    }, [controlsEnabled, raiseValue]);
+
+    const handleNextHand = useCallback(() => {
+        setShowNextHand(false);
+        if (engineRef.current) {
+            engineRef.current.startNewHand();
+        }
+    }, []);
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Avoid triggering shortcuts when inside input fields
+            if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+                return;
+            }
+
+            if (e.key === 'Escape') {
+                setShowHandHierarchy(false);
+                setIsHistoryDrawerOpen(false);
+                return;
+            }
+
+            if (e.key === 'h' || e.key === 'H') {
+                setShowHandHierarchy((prev) => !prev);
+                return;
+            }
+
+            if (e.key === 'l' || e.key === 'L') {
+                setIsHistoryDrawerOpen((prev) => !prev);
+                return;
+            }
+
+            if (showNextHand && (e.key === ' ' || e.key === 'Enter')) {
+                e.preventDefault();
+                handleNextHand();
+                return;
+            }
+
+            if (!controlsEnabled) return;
+
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                handleFold();
+            } else if (e.key === 'c' || e.key === 'C' || e.key === ' ') {
+                e.preventDefault();
+                handleCheckCall();
+            } else if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                handleRaise();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [controlsEnabled, showNextHand, handleFold, handleCheckCall, handleRaise, handleNextHand]);
+
+    // Engine & 3D Initialization
     useEffect(() => {
         if (!canvasContainerRef.current) return;
 
@@ -48,16 +158,21 @@ export default function PokerGame() {
             initialChips: 1000,
             smallBlind: 10,
             bigBlind: 20,
-            botDelayMs: 800,
+            botDelayMs: 750,
             autoStepBots: true
         });
         engineRef.current = engine;
 
-        // Wire Engine Events to 3D Scene & React State
+        const formatTime = () => {
+            const d = new Date();
+            return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+        };
+
+        // Wire Engine Events
         const unsubLog = engine.on('log', ({ message, highlight }) => {
             setLogs((prev) => [
-                { id: ++logCounter.current, message, highlight },
-                ...prev.slice(0, 50)
+                { id: ++logCounter.current, message, highlight, timestamp: formatTime() },
+                ...prev.slice(0, 75)
             ]);
         });
 
@@ -100,20 +215,20 @@ export default function PokerGame() {
             scene.renderPot3DChips(snapshot.pot);
 
             // Human player controls enable/disable
-            const human = snapshot.players[0];
+            const humanPlayer = snapshot.players[0];
             const isHumanTurn =
                 snapshot.currentTurnIdx === 0 &&
                 snapshot.stage !== 'SHOWDOWN' &&
                 snapshot.handInProgress &&
-                !human.folded &&
-                !human.isAllIn;
+                !humanPlayer.folded &&
+                !humanPlayer.isAllIn;
 
             setControlsEnabled(isHumanTurn);
 
             // Compute slider values
-            const minRaiseTotal = snapshot.highestCurrentBet + snapshot.bigBlind;
-            const maxVal = human.chips + human.currentBet;
-            const minVal = Math.min(minRaiseTotal, maxVal);
+            const minRaise = snapshot.highestCurrentBet + snapshot.bigBlind;
+            const maxVal = humanPlayer.chips + humanPlayer.currentBet;
+            const minVal = Math.min(minRaise, maxVal);
             setRaiseValue((prev) => {
                 if (prev < minVal || prev > maxVal) return minVal;
                 return prev;
@@ -124,7 +239,7 @@ export default function PokerGame() {
             setGameState((prev) => (prev ? { ...prev, winPrediction: prediction } : null));
         });
 
-        // Start the first hand
+        // Start first hand
         engine.startNewHand();
 
         return () => {
@@ -142,102 +257,99 @@ export default function PokerGame() {
         };
     }, []);
 
-    const human = gameState?.players[0];
-    const callAmt = gameState && human ? gameState.highestCurrentBet - human.currentBet : 0;
-    const minRaiseTotal = gameState && human ? gameState.highestCurrentBet + gameState.bigBlind : 0;
-    const sliderMax = human ? human.chips + human.currentBet : 100;
-    const sliderMin = Math.min(minRaiseTotal, sliderMax);
-
+    // Button label formatting
     let checkCallLabel = 'Check';
+    let checkCallSub = 'Free';
     if (human && callAmt > 0) {
-        checkCallLabel = callAmt >= human.chips ? 'Call All-In' : `Call $${callAmt}`;
+        if (callAmt >= human.chips) {
+            checkCallLabel = 'All-In';
+            checkCallSub = `$${human.chips}`;
+        } else {
+            checkCallLabel = 'Call';
+            checkCallSub = `$${callAmt}`;
+        }
     }
 
-    const handleFold = () => {
-        if (!controlsEnabled || !engineRef.current) return;
-        setControlsEnabled(false);
-        engineRef.current.fold(0);
-    };
-
-    const handleCheckCall = () => {
-        if (!controlsEnabled || !engineRef.current) return;
-        setControlsEnabled(false);
-        if (callAmt === 0) {
-            engineRef.current.check(0);
-        } else {
-            engineRef.current.call(0);
-        }
-    };
-
-    const handleSetRaiseAmount = (val: number) => {
-        const clamped = Math.max(sliderMin, Math.min(sliderMax, Math.round(val / 10) * 10));
-        setRaiseValue(clamped);
-    };
-
-    const handleRaise = () => {
-        if (!controlsEnabled || !engineRef.current) return;
-        setControlsEnabled(false);
-        engineRef.current.raise(raiseValue, 0);
-    };
-
-    const handleNextHand = () => {
-        setShowNextHand(false);
-        if (engineRef.current) {
-            engineRef.current.startNewHand();
-        }
-    };
+    // Folded potential hand evaluation
+    const foldedHandEval =
+        human?.folded && gameState && gameState.stage !== 'PREFLOP' && gameState.communityCards.length >= 3
+            ? evaluateBestHand([
+                  ...human.hand,
+                  ...gameState.communityCards.slice(
+                      0,
+                      gameState.stage === 'FLOP' ? 3 : gameState.stage === 'TURN' ? 4 : 5
+                  )
+              ]).name
+            : null;
 
     return (
-        <div className="poker-wrapper">
+        <div className="artisan-poker-wrapper">
+            {/* 3D Canvas Container */}
             <div id="canvas-container" ref={canvasContainerRef} />
 
+            {/* UI Overlay */}
             <div id="ui-overlay">
-                {/* Hand Hierarchy Toggle Button (Top Left Corner) */}
-                <button
-                    id="hand-ranks-toggle"
-                    className="hand-ranks-btn hud-element"
-                    onClick={() => setShowHandHierarchy(true)}
-                    aria-label="View Poker Hand Rankings"
-                >
-                    🏆 Hand Ranks
-                </button>
+                {/* Top Status Island */}
+                <header className="table-top-bar hud-element">
+                    {/* Left: Brand & Hand Rankings */}
+                    <div className="top-bar-left">
+                        <div className="table-brand">
+                            <span className="brand-dot" />
+                            <span className="brand-text">SWOSHPOKE</span>
+                        </div>
 
-                {/* Mobile Log Toggle Button (Top Right) */}
-                <button
-                    id="mobile-log-toggle"
-                    className="mobile-log-btn hud-element"
-                    onClick={() => setIsLogOpenMobile((prev) => !prev)}
-                    aria-label="Toggle game history"
-                >
-                    📜 Log {logs.length > 0 && <span className="log-count">({logs.length})</span>}
-                </button>
-
-                {/* Top Pot Bar */}
-                <div id="top-bar" className="hud-element">
-                    <div className="pot-display">
-                        POT: $<span id="pot-amount">{gameState?.pot ?? 0}</span>
+                        <button
+                            type="button"
+                            className="luxury-header-btn"
+                            onClick={() => setShowHandHierarchy(true)}
+                            aria-label="View Poker Hand Rankings"
+                        >
+                            <TrophyIcon className="w-4 h-4 text-amber-400" />
+                            <span className="btn-label">Hand Ranks</span>
+                            <span className="key-hint">H</span>
+                        </button>
                     </div>
-                </div>
 
-                {/* Mobile Compact Recent-Action Ticker */}
-                {logs.length > 0 && (
-                    <div
-                        className="mobile-log-ticker hud-element"
-                        onClick={() => setIsLogOpenMobile(true)}
-                    >
-                        <span className="ticker-badge">LATEST</span>
-                        <span className="ticker-text">{logs[0].message}</span>
+                    {/* Center: The Pot & Round Centerpiece */}
+                    <div className="pot-island">
+                        <div className="pot-meta-strip">
+                            <span className="stage-pill">{gameState?.stage ?? 'PREFLOP'}</span>
+                            <span className="blinds-info">${gameState?.smallBlind ?? 10}/${gameState?.bigBlind ?? 20}</span>
+                        </div>
+                        <div className="pot-value-row">
+                            <ChipIcon className="w-4 h-4 pot-chip-icon" />
+                            <span className="pot-label">POT</span>
+                            <span className="pot-currency">$</span>
+                            <span className="pot-digits">{gameState?.pot?.toLocaleString() ?? 0}</span>
+                        </div>
                     </div>
-                )}
 
-                {/* 2D Player HUD Badges */}
+                    {/* Right: History Drawer Toggle */}
+                    <div className="top-bar-right">
+                        <button
+                            type="button"
+                            className="luxury-header-btn"
+                            onClick={() => setIsHistoryDrawerOpen((prev) => !prev)}
+                            aria-label="Toggle Activity Feed"
+                        >
+                            <HistoryIcon className="w-4 h-4 text-slate-300" />
+                            <span className="btn-label">Activity</span>
+                            {logs.length > 0 && <span className="counter-pill">{logs.length}</span>}
+                            <span className="key-hint">L</span>
+                        </button>
+                    </div>
+                </header>
+
+                {/* Table Nameplates (Player Badges) */}
                 <div id="badges-container">
                     {gameState?.players.map((p, idx) => {
-                        const isActive = idx === gameState.currentTurnIdx && gameState.stage !== 'SHOWDOWN';
+                        const isActive = idx === gameState.currentTurnIdx && gameState.stage !== 'SHOWDOWN' && gameState.handInProgress;
+                        const isDealer = idx === gameState.dealerIdx;
                         const isHuman = idx === 0;
 
+                        // Desktop: Human badge is lower-left; Bots use 3D projection
                         const style: React.CSSProperties = isHuman
-                            ? {} // Positioned statically via CSS (desktop: bottom-left, mobile: top-left)
+                            ? {}
                             : hudPositions[idx]
                             ? {
                                   left: `${hudPositions[idx].x}px`,
@@ -249,101 +361,100 @@ export default function PokerGame() {
                             <div
                                 key={p.id}
                                 id={`badge-${p.id}`}
-                                className={`player-badge hud-element ${isActive ? 'active' : ''}`}
+                                className={`player-plaque hud-element ${isActive ? 'is-active' : ''} ${p.folded ? 'is-folded' : ''}`}
                                 style={style}
                             >
-                                <div className="name">{p.name}</div>
-                                <div className="chips">${p.chips}</div>
-                                <div className="bet-round">Round Bet: ${p.currentBet}</div>
-                                <div className="action">{p.lastAction || ''}</div>
+                                <div className="plaque-avatar-col">
+                                    <div className="plaque-avatar">
+                                        <span className="avatar-initials">
+                                            {isHuman ? 'YOU' : `B${p.id}`}
+                                        </span>
+                                        {isDealer && <span className="dealer-chip-badge">D</span>}
+                                    </div>
+                                </div>
+
+                                <div className="plaque-info-col">
+                                    <div className="plaque-name-row">
+                                        <span className="plaque-player-name">{p.name}</span>
+                                        {p.folded && <span className="plaque-folded-tag">Folded</span>}
+                                        {p.isAllIn && <span className="plaque-allin-tag">All-In</span>}
+                                    </div>
+
+                                    <div className="plaque-chips-row">
+                                        <span className="plaque-chips-val">${p.chips.toLocaleString()}</span>
+                                        {p.currentBet > 0 && (
+                                            <span className="plaque-bet-pill">
+                                                Bet ${p.currentBet.toLocaleString()}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {p.lastAction && !p.folded && (
+                                        <div className="plaque-action-pill">{p.lastAction}</div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
                 </div>
 
-                {/* Log Box (Desktop bottom-left, Mobile drawer) */}
+                {/* Bottom Action Command Console */}
                 <div
-                    id="log-box"
-                    className={`hud-element ${isLogOpenMobile ? 'mobile-open' : ''}`}
+                    id="action-console"
+                    className={`hud-element ${controlsEnabled ? 'is-your-turn' : ''}`}
                 >
-                    <div className="log-mobile-header">
-                        <span className="log-mobile-title">📜 Hand History</span>
-                        <button
-                            className="log-mobile-close"
-                            onClick={() => setIsLogOpenMobile(false)}
-                            aria-label="Close log drawer"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                    <div className="log-entries-scroll">
-                        {logs.map((entry) => (
-                            <div
-                                key={entry.id}
-                                className={`log-entry ${entry.highlight ? 'highlight' : ''}`}
-                            >
-                                {entry.message}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                    {/* Console Status Header */}
+                    <div className="console-status-header">
+                        <div className="console-player-stat">
+                            <span className="stat-eyebrow">YOUR CHIPS</span>
+                            <span className="stat-number gold-stat">${human?.chips?.toLocaleString() ?? 0}</span>
+                        </div>
 
-                {/* Bottom Controls Dock */}
-                <div id="controls" className={`hud-element ${controlsEnabled ? 'turn-active' : ''}`}>
-                    {/* Status header with Player Info and Turn Indicator */}
-                    <div className="controls-header">
-                        <div className="player-stat">
-                            <span className="stat-label">CHIPS</span>
-                            <span className="stat-value chips-gold">${human?.chips ?? 0}</span>
+                        <div className={`console-turn-beacon ${controlsEnabled ? 'beacon-active' : ''}`}>
+                            <span className="beacon-dot" />
+                            <span className="beacon-text">
+                                {controlsEnabled
+                                    ? 'YOUR TURN TO ACT'
+                                    : gameState?.stage === 'SHOWDOWN'
+                                    ? 'SHOWDOWN'
+                                    : !gameState?.handInProgress
+                                    ? 'HAND FINISHED'
+                                    : `${gameState?.players[gameState.currentTurnIdx]?.name ?? 'Bot'}'s turn`}
+                            </span>
                         </div>
-                        <div className={`turn-indicator ${controlsEnabled ? 'my-turn' : ''}`}>
-                            {controlsEnabled
-                                ? '🟢 YOUR TURN'
-                                : gameState?.stage === 'SHOWDOWN'
-                                ? '🏆 SHOWDOWN'
-                                : !gameState?.handInProgress
-                                ? '🏆 HAND FINISHED'
-                                : `⏳ ${gameState?.players[gameState.currentTurnIdx]?.name ?? 'Bot'}'s turn`}
-                        </div>
-                        <div className="player-stat">
-                            <span className="stat-label">ROUND BET</span>
-                            <span className="stat-value bet-green">${human?.currentBet ?? 0}</span>
+
+                        <div className="console-player-stat text-right">
+                            <span className="stat-eyebrow">ROUND BET</span>
+                            <span className="stat-number emerald-stat">${human?.currentBet?.toLocaleString() ?? 0}</span>
                         </div>
                     </div>
 
-                    {/* Win Prediction Card (Displayed post-flop while player is in the hand) */}
+                    {/* Dynamic Intelligence Bar: Live Equity Meter or Mucked Cards Inspector */}
                     {gameState?.stage !== 'PREFLOP' && gameState?.winPrediction && !human?.folded && (
-                        <div className="win-prediction-card">
-                            <div className="win-prediction-header">
-                                <div className="hand-name-badge">
-                                    <span className="badge-icon">🎯</span>
-                                    <span className="hand-name-text">
-                                        {gameState.winPrediction.currentHandName}
-                                    </span>
+                        <div className="equity-intel-card">
+                            <div className="equity-card-header">
+                                <div className="made-hand-tag">
+                                    <span className="intel-lead">MADE HAND:</span>
+                                    <span className="intel-hand-name">{gameState.winPrediction.currentHandName}</span>
                                 </div>
-                                <div className="win-odds-badge">
-                                    <span className="odds-label">Win:</span>
-                                    <span className="odds-percent">
-                                        {gameState.winPrediction.winPercentage}%
-                                    </span>
+
+                                <div className="equity-percentage-badge">
+                                    <span className="equity-val">{gameState.winPrediction.winPercentage}%</span>
+                                    <span className="equity-label">WIN EQUITY</span>
                                     {gameState.winPrediction.tiePercentage > 0 && (
-                                        <span className="odds-tie">
-                                            (Tie {gameState.winPrediction.tiePercentage}%)
-                                        </span>
+                                        <span className="tie-label">({gameState.winPrediction.tiePercentage}% tie)</span>
                                     )}
                                 </div>
                             </div>
-                            <div
-                                className="win-meter-track"
-                                title={`Win: ${gameState.winPrediction.winPercentage}% | Tie: ${gameState.winPrediction.tiePercentage}% | Loss: ${gameState.winPrediction.lossPercentage}%`}
-                            >
+
+                            <div className="equity-gauge-track">
                                 <div
-                                    className="win-meter-fill win-fill"
+                                    className="equity-gauge-fill win-gauge"
                                     style={{ width: `${gameState.winPrediction.winPercentage}%` }}
                                 />
                                 {gameState.winPrediction.tiePercentage > 0 && (
                                     <div
-                                        className="win-meter-fill tie-fill"
+                                        className="equity-gauge-fill tie-gauge"
                                         style={{ width: `${gameState.winPrediction.tiePercentage}%` }}
                                     />
                                 )}
@@ -351,54 +462,42 @@ export default function PokerGame() {
                         </div>
                     )}
 
-                    {/* Folded Cards Banner (Displays player's cards while everyone else continues playing) */}
+                    {/* Mucked Cards Inspector (If user folded but hand is ongoing) */}
                     {human?.folded && gameState?.handInProgress && human.hand.length >= 2 && (
-                        <div className="folded-hand-card">
-                            <div className="folded-hand-header">
-                                <span className="folded-status-pill">FOLDED</span>
-                                <span className="folded-title">Your Mucked Cards:</span>
+                        <div className="mucked-cards-card">
+                            <div className="mucked-header">
+                                <span className="mucked-tag">MUCKED</span>
+                                <span className="mucked-sub">Your Folded Hole Cards</span>
                             </div>
-                            <div className="folded-cards-row">
-                                <div className="folded-mini-cards">
+
+                            <div className="mucked-body">
+                                <div className="mucked-cards-cluster">
                                     {human.hand.map((c, i) => (
                                         <div
                                             key={i}
-                                            className={`mini-card ${c.color === '#dc2626' ? 'card-red' : 'card-black'}`}
+                                            className={`artisan-mini-card ${c.color === '#dc2626' ? 'red-card' : 'black-card'}`}
                                         >
                                             <span className="mini-card-val">{c.value}</span>
-                                            <span className="mini-card-suit">{c.suit}</span>
+                                            <RenderCardSuit suit={c.suit} color={c.color} />
                                         </div>
                                     ))}
                                 </div>
-                                {gameState.stage !== 'PREFLOP' && gameState.communityCards.length >= 3 && (
-                                    <div className="folded-potential-hand">
-                                        <span className="potential-label">Would make:</span>
-                                        <span className="potential-name">
-                                            {
-                                                evaluateBestHand([
-                                                    ...human.hand,
-                                                    ...gameState.communityCards.slice(
-                                                        0,
-                                                        gameState.stage === 'FLOP'
-                                                            ? 3
-                                                            : gameState.stage === 'TURN'
-                                                            ? 4
-                                                            : 5
-                                                    )
-                                                ]).name
-                                            }
-                                        </span>
+
+                                {foldedHandEval && (
+                                    <div className="mucked-potential-block">
+                                        <span className="potential-caption">Board Potential</span>
+                                        <span className="potential-highlight">{foldedHandEval}</span>
                                     </div>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Quick Bet Presets */}
-                    <div className="quick-presets">
+                    {/* Bet Sizing Presets */}
+                    <div className="bet-presets-strip">
                         <button
                             type="button"
-                            className="preset-btn"
+                            className="preset-chip"
                             disabled={!controlsEnabled}
                             onClick={() => handleSetRaiseAmount(sliderMin)}
                         >
@@ -406,40 +505,31 @@ export default function PokerGame() {
                         </button>
                         <button
                             type="button"
-                            className="preset-btn"
+                            className="preset-chip"
                             disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(raiseValue - (gameState?.bigBlind ?? 20))}
+                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, Math.round((gameState?.pot ?? 0) * 0.5)))}
                         >
-                            -
-                        </button>
-                        <span id="raise-val">${raiseValue}</span>
-                        <button
-                            type="button"
-                            className="preset-btn"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(raiseValue + (gameState?.bigBlind ?? 20))}
-                        >
-                            +
+                            1/2 Pot
                         </button>
                         <button
                             type="button"
-                            className="preset-btn"
+                            className="preset-chip"
                             disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, (gameState?.highestCurrentBet ?? 20) * 2))}
+                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, Math.round((gameState?.pot ?? 0) * 0.75)))}
                         >
-                            2x
+                            3/4 Pot
                         </button>
                         <button
                             type="button"
-                            className="preset-btn"
+                            className="preset-chip"
                             disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, (gameState?.pot ?? 0)))}
+                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, gameState?.pot ?? 0))}
                         >
                             Pot
                         </button>
                         <button
                             type="button"
-                            className="preset-btn"
+                            className="preset-chip"
                             disabled={!controlsEnabled}
                             onClick={() => handleSetRaiseAmount(sliderMax)}
                         >
@@ -447,60 +537,151 @@ export default function PokerGame() {
                         </button>
                     </div>
 
-                    <div className="raise-slider-container">
-                        <input
-                            type="range"
-                            id="raise-slider"
-                            min={sliderMin}
-                            max={sliderMax}
-                            step={10}
-                            value={raiseValue}
+                    {/* Precision Raise Slider Bar */}
+                    <div className="slider-dock-row">
+                        <button
+                            type="button"
+                            className="stepper-btn"
                             disabled={!controlsEnabled}
-                            onChange={(e) => setRaiseValue(parseInt(e.target.value, 10))}
-                        />
+                            onClick={() => handleSetRaiseAmount(raiseValue - (gameState?.bigBlind ?? 20))}
+                            aria-label="Decrease bet"
+                        >
+                            −
+                        </button>
+
+                        <div className="slider-track-wrap">
+                            <input
+                                type="range"
+                                id="artisan-raise-slider"
+                                min={sliderMin}
+                                max={sliderMax}
+                                step={10}
+                                value={raiseValue}
+                                disabled={!controlsEnabled}
+                                onChange={(e) => setRaiseValue(parseInt(e.target.value, 10))}
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            className="stepper-btn"
+                            disabled={!controlsEnabled}
+                            onClick={() => handleSetRaiseAmount(raiseValue + (gameState?.bigBlind ?? 20))}
+                            aria-label="Increase bet"
+                        >
+                            +
+                        </button>
+
+                        <div className="target-raise-pill">
+                            <span className="raise-currency">$</span>
+                            <span className="raise-digits">{raiseValue.toLocaleString()}</span>
+                        </div>
                     </div>
 
-                    <div className="btn-group">
+                    {/* Tactile Action Buttons */}
+                    <div className="action-buttons-grid">
                         <button
+                            type="button"
                             id="btn-fold"
-                            className="poker-btn danger"
+                            className="action-btn btn-fold"
                             disabled={!controlsEnabled}
                             onClick={handleFold}
                         >
-                            Fold
+                            <span className="btn-main-label">Fold</span>
+                            <span className="btn-shortcut-key">F</span>
                         </button>
+
                         <button
+                            type="button"
                             id="btn-check-call"
-                            className="poker-btn"
+                            className="action-btn btn-call"
                             disabled={!controlsEnabled}
                             onClick={handleCheckCall}
                         >
-                            {checkCallLabel}
+                            <div className="btn-label-stack">
+                                <span className="btn-main-label">{checkCallLabel}</span>
+                                <span className="btn-sub-label">{checkCallSub}</span>
+                            </div>
+                            <span className="btn-shortcut-key">C</span>
                         </button>
+
                         <button
+                            type="button"
                             id="btn-raise"
-                            className="poker-btn primary"
+                            className="action-btn btn-raise"
                             disabled={!controlsEnabled}
                             onClick={handleRaise}
                         >
-                            Raise ${raiseValue}
+                            <div className="btn-label-stack">
+                                <span className="btn-main-label">Raise</span>
+                                <span className="btn-sub-label">To ${raiseValue.toLocaleString()}</span>
+                            </div>
+                            <span className="btn-shortcut-key">R</span>
                         </button>
                     </div>
 
+                    {/* Hand Finished CTA */}
                     {showNextHand && (
-                        <button
-                            id="btn-next-hand"
-                            className="poker-btn primary next-hand-highlight"
-                            style={{ width: '100%', marginTop: '6px' }}
-                            onClick={handleNextHand}
-                        >
-                            ✨ Next Hand ✨
-                        </button>
+                        <div className="next-hand-cta-wrapper">
+                            {gameState?.winner && (
+                                <div className="hand-winner-announcement">
+                                    <span className="winner-label">🏆 Hand Won by {gameState.winner.player.name}</span>
+                                    <span className="winner-amount">+${gameState.pot.toLocaleString()}</span>
+                                    {gameState.winner.handName && (
+                                        <span className="winner-hand-spec">({gameState.winner.handName})</span>
+                                    )}
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                id="btn-next-hand"
+                                className="action-btn btn-next-hand"
+                                onClick={handleNextHand}
+                            >
+                                <span className="btn-main-label">Deal Next Hand →</span>
+                                <span className="btn-shortcut-key">Space</span>
+                            </button>
+                        </div>
                     )}
                 </div>
+
+                {/* Slide-out Activity Feed Drawer */}
+                <aside className={`activity-feed-drawer hud-element ${isHistoryDrawerOpen ? 'is-open' : ''}`}>
+                    <div className="drawer-header">
+                        <div className="drawer-title-block">
+                            <HistoryIcon className="w-4 h-4 text-amber-400" />
+                            <span className="drawer-title">Table Activity</span>
+                            <span className="drawer-count">{logs.length}</span>
+                        </div>
+                        <button
+                            type="button"
+                            className="drawer-close-btn"
+                            onClick={() => setIsHistoryDrawerOpen(false)}
+                            aria-label="Close activity feed"
+                        >
+                            <CloseIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <div className="drawer-logs-stream">
+                        {logs.length === 0 ? (
+                            <div className="logs-empty-state">No events recorded yet.</div>
+                        ) : (
+                            logs.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className={`stream-log-row ${item.highlight ? 'is-highlight' : ''}`}
+                                >
+                                    <span className="log-time">{item.timestamp}</span>
+                                    <span className="log-msg">{item.message}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </aside>
             </div>
 
-            {/* Poker Hand Hierarchy Modal */}
+            {/* Poker Hand Hierarchy Reference Modal */}
             <HandHierarchyModal
                 isOpen={showHandHierarchy}
                 onClose={() => setShowHandHierarchy(false)}
