@@ -331,6 +331,76 @@
     background: #64748b;
 }
 
+/* Folded Hand Banner in Controls */
+.folded-hand-card {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 10px;
+    padding: 7px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    animation: fadeInDown 0.3s ease;
+}
+
+.folded-hand-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.folded-status-pill {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #f87171;
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+}
+
+.folded-title {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.folded-cards-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.folded-mini-cards {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.folded-potential-hand {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    background: rgba(30, 41, 59, 0.6);
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.potential-label {
+    color: #94a3b8;
+    font-size: 0.65rem;
+}
+
+.potential-name {
+    color: #38bdf8;
+    font-weight: 700;
+}
+
 /* Quick Bet Presets */
 .quick-presets {
     display: flex;
@@ -860,6 +930,11 @@
         gap: 3px;
     }
 
+    .folded-hand-card {
+        padding: 5px 8px;
+        gap: 4px;
+    }
+
     /* Mobile Log Button at Top Right */
     .mobile-log-btn {
         display: flex;
@@ -1055,6 +1130,11 @@
     }
 
     .win-prediction-card {
+        padding: 3px 6px;
+        gap: 2px;
+    }
+
+    .folded-hand-card {
         padding: 3px 6px;
         gap: 2px;
     }

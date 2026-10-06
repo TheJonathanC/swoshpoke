@@ -490,18 +490,31 @@ export class Poker3DScene {
         if (!pObj.handGroup) return;
 
         if (isHuman) {
+            // Detach from camera and attach to scene so cards live in world space on the table felt
+            if (pObj.handGroup.parent === this.camera) {
+                this.scene.attach(pObj.handGroup);
+            }
+
+            // Animate handGroup down to the table felt in front of the player
+            const targetTablePos = new THREE.Vector3(0, 0.22, 4.4);
             this.animateObjectTo(
                 pObj.handGroup,
-                new THREE.Vector3(0, -8, -8),
-                { x: pObj.handGroup.rotation.x, y: pObj.handGroup.rotation.y, z: pObj.handGroup.rotation.z },
-                400,
-                () => {
-                    if (pObj.handGroup && pObj.handGroup.parent) {
-                        pObj.handGroup.parent.remove(pObj.handGroup);
-                    }
-                    pObj.handGroup = null;
-                }
+                targetTablePos,
+                { x: 0, y: 0, z: 0 },
+                500
             );
+
+            // Lay cards flat on table felt, face-up and slightly fanned
+            pObj.meshCards.forEach((cardMesh, cIdx) => {
+                const offsetX = cIdx === 0 ? -0.75 : 0.75;
+                const rotY = cIdx === 0 ? 0.12 : -0.12;
+                this.animateObjectTo(
+                    cardMesh,
+                    new THREE.Vector3(offsetX, cIdx * 0.01, 0),
+                    { x: 0, y: rotY, z: 0 },
+                    500
+                );
+            });
         } else {
             this.animateObjectTo(
                 pObj.handGroup,

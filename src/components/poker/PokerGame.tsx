@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PokerEngine } from '@/engine/poker-engine';
 import { GameStateSnapshot } from '@/engine/types';
+import { evaluateBestHand } from '@/engine/hand-evaluator';
 import { Poker3DScene } from './poker-3d';
 import HandHierarchyModal from './HandHierarchyModal';
 import './poker.css';
@@ -345,6 +346,49 @@ export default function PokerGame() {
                                         className="win-meter-fill tie-fill"
                                         style={{ width: `${gameState.winPrediction.tiePercentage}%` }}
                                     />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Folded Cards Banner (Displays player's cards while everyone else continues playing) */}
+                    {human?.folded && gameState?.handInProgress && human.hand.length >= 2 && (
+                        <div className="folded-hand-card">
+                            <div className="folded-hand-header">
+                                <span className="folded-status-pill">FOLDED</span>
+                                <span className="folded-title">Your Mucked Cards:</span>
+                            </div>
+                            <div className="folded-cards-row">
+                                <div className="folded-mini-cards">
+                                    {human.hand.map((c, i) => (
+                                        <div
+                                            key={i}
+                                            className={`mini-card ${c.color === '#dc2626' ? 'card-red' : 'card-black'}`}
+                                        >
+                                            <span className="mini-card-val">{c.value}</span>
+                                            <span className="mini-card-suit">{c.suit}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {gameState.stage !== 'PREFLOP' && gameState.communityCards.length >= 3 && (
+                                    <div className="folded-potential-hand">
+                                        <span className="potential-label">Would make:</span>
+                                        <span className="potential-name">
+                                            {
+                                                evaluateBestHand([
+                                                    ...human.hand,
+                                                    ...gameState.communityCards.slice(
+                                                        0,
+                                                        gameState.stage === 'FLOP'
+                                                            ? 3
+                                                            : gameState.stage === 'TURN'
+                                                            ? 4
+                                                            : 5
+                                                    )
+                                                ]).name
+                                            }
+                                        </span>
+                                    </div>
                                 )}
                             </div>
                         </div>
