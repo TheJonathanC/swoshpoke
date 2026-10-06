@@ -685,6 +685,12 @@
    5. Bet Sizing Presets & Custom Slider
    ========================================================================== */
 
+.betting-controls-cluster {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .bet-presets-strip {
     display: flex;
     gap: 6px;
@@ -1498,26 +1504,97 @@
         width: auto;
         max-width: 440px;
         margin: 0 auto;
-        padding: 12px 14px;
-        border-radius: 18px;
-        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 16px;
+        gap: 6px;
+    }
+
+    .console-status-header {
+        padding-bottom: 6px;
+    }
+
+    .stat-eyebrow {
+        font-size: 0.55rem;
+    }
+
+    .stat-number {
+        font-size: 0.82rem;
+    }
+
+    .beacon-text {
+        font-size: 0.62rem;
+    }
+
+    .betting-controls-cluster {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .betting-controls-cluster.mobile-hidden {
+        display: none !important;
+    }
+
+    .bet-presets-strip {
+        gap: 4px;
+    }
+
+    .preset-chip {
+        padding: 4px 0;
+        font-size: 0.68rem;
+    }
+
+    .slider-dock-row {
+        gap: 6px;
+    }
+
+    .stepper-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .target-raise-pill {
+        padding: 2px 8px;
+        min-width: 58px;
+    }
+
+    .raise-digits {
+        font-size: 0.82rem;
+    }
+
+    .action-buttons-grid {
+        gap: 6px;
     }
 
     .action-btn {
-        min-height: 46px;
-        padding: 8px 4px;
+        min-height: 40px;
+        padding: 6px 4px;
     }
 
     .btn-main-label {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
 
     .btn-sub-label {
-        font-size: 0.62rem;
+        font-size: 0.58rem;
     }
 
     .btn-shortcut-key {
         display: none;
+    }
+
+    .mucked-cards-card,
+    .equity-intel-card {
+        padding: 6px 10px;
+        gap: 4px;
+        border-radius: 10px;
+    }
+
+    .artisan-mini-card {
+        width: 24px;
+        height: 34px;
+        font-size: 0.72rem;
     }
 
     /* Hierarchy Modal on Mobile */

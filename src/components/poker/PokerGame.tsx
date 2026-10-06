@@ -493,132 +493,137 @@ export default function PokerGame() {
                         </div>
                     )}
 
-                    {/* Bet Sizing Presets */}
-                    <div className="bet-presets-strip">
-                        <button
-                            type="button"
-                            className="preset-chip"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(sliderMin)}
-                        >
-                            Min
-                        </button>
-                        <button
-                            type="button"
-                            className="preset-chip"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, Math.round((gameState?.pot ?? 0) * 0.5)))}
-                        >
-                            1/2 Pot
-                        </button>
-                        <button
-                            type="button"
-                            className="preset-chip"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, Math.round((gameState?.pot ?? 0) * 0.75)))}
-                        >
-                            3/4 Pot
-                        </button>
-                        <button
-                            type="button"
-                            className="preset-chip"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(Math.max(sliderMin, gameState?.pot ?? 0))}
-                        >
-                            Pot
-                        </button>
-                        <button
-                            type="button"
-                            className="preset-chip"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(sliderMax)}
-                        >
-                            All-In
-                        </button>
-                    </div>
-
-                    {/* Precision Raise Slider Bar */}
-                    <div className="slider-dock-row">
-                        <button
-                            type="button"
-                            className="stepper-btn"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(raiseValue - (gameState?.bigBlind ?? 20))}
-                            aria-label="Decrease bet"
-                        >
-                            −
-                        </button>
-
-                        <div className="slider-track-wrap">
-                            <input
-                                type="range"
-                                id="artisan-raise-slider"
-                                min={sliderMin}
-                                max={sliderMax}
-                                step={10}
-                                value={raiseValue}
-                                disabled={!controlsEnabled}
-                                onChange={(e) => setRaiseValue(parseInt(e.target.value, 10))}
-                            />
-                        </div>
-
-                        <button
-                            type="button"
-                            className="stepper-btn"
-                            disabled={!controlsEnabled}
-                            onClick={() => handleSetRaiseAmount(raiseValue + (gameState?.bigBlind ?? 20))}
-                            aria-label="Increase bet"
-                        >
-                            +
-                        </button>
-
-                        <div className="target-raise-pill">
-                            <span className="raise-currency">$</span>
-                            <span className="raise-digits">{raiseValue.toLocaleString()}</span>
-                        </div>
-                    </div>
-
-                    {/* Tactile Action Buttons */}
-                    <div className="action-buttons-grid">
-                        <button
-                            type="button"
-                            id="btn-fold"
-                            className="action-btn btn-fold"
-                            disabled={!controlsEnabled}
-                            onClick={handleFold}
-                        >
-                            <span className="btn-main-label">Fold</span>
-                            <span className="btn-shortcut-key">F</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            id="btn-check-call"
-                            className="action-btn btn-call"
-                            disabled={!controlsEnabled}
-                            onClick={handleCheckCall}
-                        >
-                            <div className="btn-label-stack">
-                                <span className="btn-main-label">{checkCallLabel}</span>
-                                <span className="btn-sub-label">{checkCallSub}</span>
+                    {/* Bet Sizing & Action Controls */}
+                    {!human?.folded && !showNextHand && (
+                        <div className={`betting-controls-cluster ${!controlsEnabled ? 'mobile-hidden' : ''}`}>
+                            {/* Bet Sizing Presets */}
+                            <div className="bet-presets-strip">
+                                <button
+                                    type="button"
+                                    className="preset-chip"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(sliderMin)}
+                                >
+                                    Min
+                                </button>
+                                <button
+                                    type="button"
+                                    className="preset-chip"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(Math.max(sliderMin, Math.round((gameState?.pot ?? 0) * 0.5)))}
+                                >
+                                    1/2 Pot
+                                </button>
+                                <button
+                                    type="button"
+                                    className="preset-chip"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(Math.max(sliderMin, Math.round((gameState?.pot ?? 0) * 0.75)))}
+                                >
+                                    3/4 Pot
+                                </button>
+                                <button
+                                    type="button"
+                                    className="preset-chip"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(Math.max(sliderMin, gameState?.pot ?? 0))}
+                                >
+                                    Pot
+                                </button>
+                                <button
+                                    type="button"
+                                    className="preset-chip"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(sliderMax)}
+                                >
+                                    All-In
+                                </button>
                             </div>
-                            <span className="btn-shortcut-key">C</span>
-                        </button>
 
-                        <button
-                            type="button"
-                            id="btn-raise"
-                            className="action-btn btn-raise"
-                            disabled={!controlsEnabled}
-                            onClick={handleRaise}
-                        >
-                            <div className="btn-label-stack">
-                                <span className="btn-main-label">Raise</span>
-                                <span className="btn-sub-label">To ${raiseValue.toLocaleString()}</span>
+                            {/* Precision Raise Slider Bar */}
+                            <div className="slider-dock-row">
+                                <button
+                                    type="button"
+                                    className="stepper-btn"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(raiseValue - (gameState?.bigBlind ?? 20))}
+                                    aria-label="Decrease bet"
+                                >
+                                    −
+                                </button>
+
+                                <div className="slider-track-wrap">
+                                    <input
+                                        type="range"
+                                        id="artisan-raise-slider"
+                                        min={sliderMin}
+                                        max={sliderMax}
+                                        step={10}
+                                        value={raiseValue}
+                                        disabled={!controlsEnabled}
+                                        onChange={(e) => setRaiseValue(parseInt(e.target.value, 10))}
+                                    />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="stepper-btn"
+                                    disabled={!controlsEnabled}
+                                    onClick={() => handleSetRaiseAmount(raiseValue + (gameState?.bigBlind ?? 20))}
+                                    aria-label="Increase bet"
+                                >
+                                    +
+                                </button>
+
+                                <div className="target-raise-pill">
+                                    <span className="raise-currency">$</span>
+                                    <span className="raise-digits">{raiseValue.toLocaleString()}</span>
+                                </div>
                             </div>
-                            <span className="btn-shortcut-key">R</span>
-                        </button>
-                    </div>
+
+                            {/* Tactile Action Buttons */}
+                            <div className="action-buttons-grid">
+                                <button
+                                    type="button"
+                                    id="btn-fold"
+                                    className="action-btn btn-fold"
+                                    disabled={!controlsEnabled}
+                                    onClick={handleFold}
+                                >
+                                    <span className="btn-main-label">Fold</span>
+                                    <span className="btn-shortcut-key">F</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    id="btn-check-call"
+                                    className="action-btn btn-call"
+                                    disabled={!controlsEnabled}
+                                    onClick={handleCheckCall}
+                                >
+                                    <div className="btn-label-stack">
+                                        <span className="btn-main-label">{checkCallLabel}</span>
+                                        <span className="btn-sub-label">{checkCallSub}</span>
+                                    </div>
+                                    <span className="btn-shortcut-key">C</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    id="btn-raise"
+                                    className="action-btn btn-raise"
+                                    disabled={!controlsEnabled}
+                                    onClick={handleRaise}
+                                >
+                                    <div className="btn-label-stack">
+                                        <span className="btn-main-label">Raise</span>
+                                        <span className="btn-sub-label">To ${raiseValue.toLocaleString()}</span>
+                                    </div>
+                                    <span className="btn-shortcut-key">R</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Hand Finished CTA */}
                     {showNextHand && (

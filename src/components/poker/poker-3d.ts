@@ -147,8 +147,8 @@ export class Poker3DScene {
 
             const humanHand = this.playerObjects[0]?.handGroup;
             if (humanHand && humanHand.parent === this.camera) {
-                const cardY = THREE.MathUtils.lerp(-2.8, -2.3, t);
-                const cardZ = THREE.MathUtils.lerp(-7.8, -6.8, t);
+                const cardY = THREE.MathUtils.lerp(-2.1, -1.6, t);
+                const cardZ = THREE.MathUtils.lerp(-7.2, -6.0, t);
                 humanHand.position.set(0, cardY, cardZ);
             }
         } else if (aspect < 1.5) {
@@ -494,8 +494,8 @@ export class Poker3DScene {
                 let cardZ = -8.0;
                 if (aspect < 1.0) {
                     const t = THREE.MathUtils.clamp((1.0 - aspect) / 0.55, 0, 1);
-                    cardY = THREE.MathUtils.lerp(-2.8, -2.3, t);
-                    cardZ = THREE.MathUtils.lerp(-7.8, -6.8, t);
+                    cardY = THREE.MathUtils.lerp(-2.1, -1.6, t);
+                    cardZ = THREE.MathUtils.lerp(-7.2, -6.0, t);
                 } else if (aspect < 1.5) {
                     cardY = -3.0;
                     cardZ = -7.8;
@@ -565,7 +565,9 @@ export class Poker3DScene {
             }
 
             // Animate handGroup down to the table felt in front of the player
-            const targetTablePos = new THREE.Vector3(0, 0.22, 4.4);
+            const aspect = window.innerWidth / window.innerHeight;
+            const targetZ = aspect < 1.0 ? 3.0 : 4.2;
+            const targetTablePos = new THREE.Vector3(0, 0.22, targetZ);
             this.animateObjectTo(
                 pObj.handGroup,
                 targetTablePos,
