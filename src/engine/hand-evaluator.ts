@@ -34,8 +34,13 @@ export function evaluate5CardHand(cards: Card[]): HandEvaluation {
     let handName = '';
 
     if (isFlush && isStraight) {
-        score = 8;
-        handName = 'Straight Flush';
+        if (ranks[0] === 14 && ranks[1] === 13) {
+            score = 9;
+            handName = 'Royal Flush';
+        } else {
+            score = 8;
+            handName = 'Straight Flush';
+        }
     } else if (countValues[0] === 4) {
         score = 7;
         handName = 'Four of a Kind';
@@ -69,15 +74,51 @@ export function evaluate5CardHand(cards: Card[]): HandEvaluation {
 }
 
 export function getBest7CardHandScore(holeCards: Card[], communityCards: Card[]): HandEvaluation {
-    const all7 = [...holeCards, ...communityCards];
-    let best: HandEvaluation = { score: -1, name: '' };
+    return evaluateBestHand([...holeCards, ...communityCards]);
+}
 
-    for (let i = 0; i < all7.length; i++) {
-        for (let j = i + 1; j < all7.length; j++) {
-            const fiveCards = all7.filter((_, idx) => idx !== i && idx !== j);
-            const evalResult = evaluate5CardHand(fiveCards);
-            if (evalResult.score > best.score) {
-                best = evalResult;
+export function evaluateBestHand(cards: Card[]): HandEvaluation {
+    if (cards.length < 5) {
+        if (cards.length === 2) {
+            const sorted = [...cards].sort((a, b) => b.numericValue - a.numericValue);
+            if (sorted[0].numericValue === sorted[1].numericValue) {
+                return {
+                    score: 1 * 1000000 + sorted[0].numericValue * 10000 + sorted[1].numericValue * 100,
+                    name: `Pocket Pair (${sorted[0].value}s)`
+                };
+            }
+            return {
+                score: sorted[0].numericValue * 10000 + sorted[1].numericValue * 100,
+                name: `High Card (${sorted[0].value})`
+            };
+        }
+        return { score: 0, name: 'High Card' };
+    }
+
+    if (cards.length === 5) {
+        return evaluate5CardHand(cards);
+    }
+
+    if (cards.length === 6) {
+        let best: HandEvaluation = { score: -1, name: '' };
+        for (let i = 0; i < cards.length; i++) {
+            const fiveCards = cards.filter((_, idx) => idx !== i);
+            const res = evaluate5CardHand(fiveCards);
+            if (res.score > best.score) {
+                best = res;
+            }
+        }
+        return best;
+    }
+
+    // 7 or more cards
+    let best: HandEvaluation = { score: -1, name: '' };
+    for (let i = 0; i < cards.length; i++) {
+        for (let j = i + 1; j < cards.length; j++) {
+            const fiveCards = cards.filter((_, idx) => idx !== i && idx !== j);
+            const res = evaluate5CardHand(fiveCards);
+            if (res.score > best.score) {
+                best = res;
             }
         }
     }

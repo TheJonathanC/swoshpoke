@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { PokerEngine } from '@/engine/poker-engine';
 import { GameStateSnapshot } from '@/engine/types';
 import { Poker3DScene } from './poker-3d';
+import HandHierarchyModal from './HandHierarchyModal';
 import './poker.css';
 
 interface LogItem {
@@ -24,6 +25,7 @@ export default function PokerGame() {
     const [controlsEnabled, setControlsEnabled] = useState<boolean>(false);
     const [showNextHand, setShowNextHand] = useState<boolean>(false);
     const [isLogOpenMobile, setIsLogOpenMobile] = useState<boolean>(false);
+    const [showHandHierarchy, setShowHandHierarchy] = useState<boolean>(false);
 
     const logCounter = useRef(0);
 
@@ -117,6 +119,10 @@ export default function PokerGame() {
             });
         });
 
+        const unsubWinPrediction = engine.on('winPredictionUpdated', (prediction) => {
+            setGameState((prev) => (prev ? { ...prev, winPrediction: prediction } : null));
+        });
+
         // Start the first hand
         engine.startNewHand();
 
@@ -128,6 +134,7 @@ export default function PokerGame() {
             unsubShowdown();
             unsubPotAwarded();
             unsubStateChange();
+            unsubWinPrediction();
 
             engine.destroy();
             scene.destroy();
@@ -184,6 +191,16 @@ export default function PokerGame() {
             <div id="canvas-container" ref={canvasContainerRef} />
 
             <div id="ui-overlay">
+                {/* Hand Hierarchy Toggle Button (Top Left Corner) */}
+                <button
+                    id="hand-ranks-toggle"
+                    className="hand-ranks-btn hud-element"
+                    onClick={() => setShowHandHierarchy(true)}
+                    aria-label="View Poker Hand Rankings"
+                >
+                    🏆 Hand Ranks
+                </button>
+
                 {/* Mobile Log Toggle Button (Top Right) */}
                 <button
                     id="mobile-log-toggle"
@@ -293,6 +310,46 @@ export default function PokerGame() {
                         </div>
                     </div>
 
+                    {/* Win Prediction Card (Displayed post-flop while player is in the hand) */}
+                    {gameState?.stage !== 'PREFLOP' && gameState?.winPrediction && !human?.folded && (
+                        <div className="win-prediction-card">
+                            <div className="win-prediction-header">
+                                <div className="hand-name-badge">
+                                    <span className="badge-icon">🎯</span>
+                                    <span className="hand-name-text">
+                                        {gameState.winPrediction.currentHandName}
+                                    </span>
+                                </div>
+                                <div className="win-odds-badge">
+                                    <span className="odds-label">Win:</span>
+                                    <span className="odds-percent">
+                                        {gameState.winPrediction.winPercentage}%
+                                    </span>
+                                    {gameState.winPrediction.tiePercentage > 0 && (
+                                        <span className="odds-tie">
+                                            (Tie {gameState.winPrediction.tiePercentage}%)
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div
+                                className="win-meter-track"
+                                title={`Win: ${gameState.winPrediction.winPercentage}% | Tie: ${gameState.winPrediction.tiePercentage}% | Loss: ${gameState.winPrediction.lossPercentage}%`}
+                            >
+                                <div
+                                    className="win-meter-fill win-fill"
+                                    style={{ width: `${gameState.winPrediction.winPercentage}%` }}
+                                />
+                                {gameState.winPrediction.tiePercentage > 0 && (
+                                    <div
+                                        className="win-meter-fill tie-fill"
+                                        style={{ width: `${gameState.winPrediction.tiePercentage}%` }}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Quick Bet Presets */}
                     <div className="quick-presets">
                         <button
@@ -398,6 +455,13 @@ export default function PokerGame() {
                     )}
                 </div>
             </div>
+
+            {/* Poker Hand Hierarchy Modal */}
+            <HandHierarchyModal
+                isOpen={showHandHierarchy}
+                onClose={() => setShowHandHierarchy(false)}
+                currentHandName={gameState?.winPrediction?.currentHandName}
+            />
         </div>
     );
 }

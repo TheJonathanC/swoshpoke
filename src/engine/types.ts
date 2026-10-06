@@ -35,6 +35,15 @@ export interface ChipDenom {
     hex: number;
 }
 
+export interface WinPrediction {
+    winPercentage: number;
+    tiePercentage: number;
+    lossPercentage: number;
+    currentHandName: string;
+    stage: Stage;
+    simulationsRun: number;
+}
+
 export interface GameStateSnapshot {
     players: Player[];
     communityCards: Card[];
@@ -46,6 +55,7 @@ export interface GameStateSnapshot {
     bigBlind: number;
     stage: Stage;
     handInProgress: boolean;
+    winPrediction?: WinPrediction;
     winner?: {
         player: Player;
         reason: string;
@@ -62,7 +72,8 @@ export type PokerEventType =
     | 'playerAction'
     | 'stageChanged'
     | 'showdown'
-    | 'potAwarded';
+    | 'potAwarded'
+    | 'winPredictionUpdated';
 
 export interface LogEvent {
     message: string;

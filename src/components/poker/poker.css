@@ -58,6 +58,41 @@
     white-space: nowrap;
 }
 
+/* Hand Ranks Button (Top-left HUD) */
+.hand-ranks-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1.5px solid #334155;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #fbc02d;
+    cursor: pointer;
+    z-index: 15;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.hand-ranks-btn:hover {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: #fbc02d;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(251, 192, 45, 0.3);
+}
+
+.hand-ranks-btn:active {
+    transform: translateY(0) scale(0.96);
+}
+
 /* Mobile Log Toggle Button (hidden on desktop) */
 .mobile-log-btn {
     display: none;
@@ -196,6 +231,104 @@
     50% {
         box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
     }
+}
+
+/* Win Prediction Card (Post-Flop Win Equity) */
+.win-prediction-card {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 10px;
+    padding: 7px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.win-prediction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.hand-name-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #38bdf8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hand-name-badge .badge-icon {
+    font-size: 0.85rem;
+}
+
+.win-odds-badge {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #4ade80;
+    white-space: nowrap;
+}
+
+.win-odds-badge .odds-label {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.win-odds-badge .odds-percent {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #22c55e;
+}
+
+.win-odds-badge .odds-tie {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.win-meter-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(30, 41, 59, 0.9);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+}
+
+.win-meter-fill {
+    height: 100%;
+    transition: width 0.4s ease-out;
+}
+
+.win-meter-fill.win-fill {
+    background: linear-gradient(90deg, #10b981, #22c55e);
+}
+
+.win-meter-fill.tie-fill {
+    background: #64748b;
 }
 
 /* Quick Bet Presets */
@@ -391,6 +524,252 @@
 }
 
 /* ==========================================================================
+   Hierarchy of Poker Hands Modal
+   ========================================================================== */
+
+.hand-hierarchy-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.hand-hierarchy-content {
+    background: #0b1120;
+    border: 1.5px solid #334155;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 620px;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(251, 192, 45, 0.15);
+    overflow: hidden;
+    animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.hand-hierarchy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #1e293b;
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.hand-hierarchy-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hand-hierarchy-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #fbc02d;
+    margin: 0;
+}
+
+.hand-hierarchy-subtitle {
+    font-size: 0.72rem;
+    color: #94a3b8;
+}
+
+.hand-hierarchy-close-btn {
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    touch-action: manipulation;
+}
+
+.hand-hierarchy-close-btn:hover {
+    background: #334155;
+    color: white;
+    border-color: #fbc02d;
+}
+
+.hand-hierarchy-list {
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.hand-rank-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+    border-radius: 12px;
+    padding: 10px 14px;
+    transition: all 0.2s ease;
+}
+
+.hand-rank-row:hover {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: #64748b;
+}
+
+.hand-rank-row.current-hand-active {
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.25);
+}
+
+.hand-rank-badge {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #fbc02d;
+    background: rgba(251, 192, 45, 0.12);
+    padding: 4px 8px;
+    border-radius: 8px;
+    min-width: 34px;
+    text-align: center;
+}
+
+.hand-rank-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.hand-rank-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.hand-rank-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #f8fafc;
+}
+
+.current-hand-pill {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    background: #22c55e;
+    color: #022c22;
+    padding: 1px 6px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    animation: pulseGlow 1.8s infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 4px rgba(34, 197, 94, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+    }
+}
+
+.hand-rank-odds {
+    font-size: 0.68rem;
+    color: #64748b;
+    margin-left: auto;
+}
+
+.hand-rank-desc {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.hand-rank-cards {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.mini-card {
+    background: #ffffff;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    min-width: 26px;
+    justify-content: center;
+}
+
+.mini-card.card-red {
+    color: #dc2626;
+}
+
+.mini-card.card-black {
+    color: #0f172a;
+}
+
+.mini-card-val {
+    font-weight: 900;
+}
+
+.mini-card-suit {
+    font-size: 0.7rem;
+}
+
+.hand-hierarchy-footer {
+    padding: 10px 18px;
+    border-top: 1px solid #1e293b;
+    background: rgba(10, 15, 25, 0.9);
+    font-size: 0.7rem;
+    color: #64748b;
+    text-align: center;
+}
+
+/* ==========================================================================
    Responsive Adaptations (Tablet & Mobile)
    ========================================================================== */
 
@@ -442,6 +821,43 @@
         padding: 5px 16px;
         border-radius: 20px;
         border-width: 1.5px;
+    }
+
+    /* Hand Ranks Button on Mobile */
+    .hand-ranks-btn {
+        top: 10px;
+        left: 10px;
+        padding: 5px 12px;
+        font-size: 0.75rem;
+    }
+
+    /* Hierarchy Modal on Mobile */
+    .hand-hierarchy-content {
+        max-height: 90vh;
+        border-radius: 14px;
+    }
+
+    .hand-rank-row {
+        padding: 8px 10px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .hand-rank-cards {
+        width: 100%;
+        justify-content: flex-start;
+        margin-top: 2px;
+    }
+
+    .mini-card {
+        padding: 2px 4px;
+        font-size: 0.7rem;
+        min-width: 24px;
+    }
+
+    .win-prediction-card {
+        padding: 5px 8px;
+        gap: 3px;
     }
 
     /* Mobile Log Button at Top Right */
@@ -628,6 +1044,23 @@
 
     #badge-0 {
         display: none !important;
+    }
+
+    .hand-ranks-btn {
+        display: inline-flex;
+        top: 6px;
+        left: 6px;
+        padding: 3px 8px;
+        font-size: 0.68rem;
+    }
+
+    .win-prediction-card {
+        padding: 3px 6px;
+        gap: 2px;
+    }
+
+    .win-meter-track {
+        height: 4px;
     }
 
     .mobile-log-btn {

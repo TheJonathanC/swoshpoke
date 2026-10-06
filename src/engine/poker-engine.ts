@@ -1,5 +1,6 @@
 import { DeckData } from './deck';
 import { getBest7CardHandScore } from './hand-evaluator';
+import { calculateWinPrediction } from './win-probability';
 import {
     Card,
     CardsDealtEvent,
@@ -11,7 +12,8 @@ import {
     PokerEventType,
     PotAwardedEvent,
     ShowdownEvent,
-    Stage
+    Stage,
+    WinPrediction
 } from './types';
 
 export interface PokerEngineOptions {
@@ -32,6 +34,7 @@ type EventListenerMap = {
     stageChanged: (stage: Stage) => void;
     showdown: (event: ShowdownEvent) => void;
     potAwarded: (event: PotAwardedEvent) => void;
+    winPredictionUpdated: (prediction: WinPrediction) => void;
 };
 
 export class PokerEngine {
@@ -47,6 +50,7 @@ export class PokerEngine {
     public stage: Stage = 'PREFLOP';
     public handInProgress: boolean = false;
     public lastWinner?: { player: Player; reason: string; handName?: string };
+    public currentWinPrediction?: WinPrediction;
 
     private botDelayMs: number = 800;
     private autoStepBots: boolean = true;
@@ -162,6 +166,7 @@ export class PokerEngine {
             bigBlind: this.bigBlind,
             stage: this.stage,
             handInProgress: this.handInProgress,
+            winPrediction: this.currentWinPrediction ? { ...this.currentWinPrediction } : undefined,
             winner: this.lastWinner
                 ? {
                       ...this.lastWinner,
@@ -233,6 +238,7 @@ export class PokerEngine {
             communityCards: [...this.communityCards]
         });
 
+        this.updateWinPrediction();
         this.notifyStateChange();
         this.processTurn();
         return true;
@@ -408,6 +414,12 @@ export class PokerEngine {
             amount: 0,
             currentBet: p.currentBet
         });
+
+        if (p.id !== 0) {
+            this.updateWinPrediction();
+        } else {
+            this.currentWinPrediction = undefined;
+        }
     }
 
     public executeBet(
@@ -479,6 +491,7 @@ export class PokerEngine {
             return;
         }
 
+        this.updateWinPrediction();
         this.emit('stageChanged', this.stage);
         this.currentTurnIdx = this.getNextActivePlayerIdx(this.dealerIdx);
 
@@ -550,6 +563,48 @@ export class PokerEngine {
         });
 
         this.notifyStateChange();
+    }
+
+    public getVisibleCommunityCards(): Card[] {
+        if (this.stage === 'PREFLOP') return [];
+        if (this.stage === 'FLOP') return this.communityCards.slice(0, 3);
+        if (this.stage === 'TURN') return this.communityCards.slice(0, 4);
+        return this.communityCards.slice(0, 5);
+    }
+
+    public updateWinPrediction(simulations: number = 400): WinPrediction | undefined {
+        const human = this.players[0];
+        if (!human || human.folded || human.hand.length < 2) {
+            this.currentWinPrediction = undefined;
+            return undefined;
+        }
+
+        const activeOpponents = this.players.filter((p) => p.id !== 0 && !p.folded).length;
+        if (activeOpponents === 0) {
+            this.currentWinPrediction = {
+                winPercentage: 100,
+                tiePercentage: 0,
+                lossPercentage: 0,
+                currentHandName: 'Uncontested',
+                stage: this.stage,
+                simulationsRun: 0
+            };
+            this.emit('winPredictionUpdated', this.currentWinPrediction);
+            return this.currentWinPrediction;
+        }
+
+        const visibleBoard = this.getVisibleCommunityCards();
+        const prediction = calculateWinPrediction(
+            human.hand,
+            visibleBoard,
+            activeOpponents,
+            this.stage,
+            simulations
+        );
+
+        this.currentWinPrediction = prediction;
+        this.emit('winPredictionUpdated', prediction);
+        return prediction;
     }
 
     public destroy(): void {
